@@ -4,6 +4,24 @@
 
 local VENDOR = "vendor"
 
+-- PostgreSQL install root (for libpq). Written by scripts/setup.ps1 into
+-- _tools/pg_root.txt, or overridable via the PGROOT env var.
+local function read_pg_root()
+    local env = os.getenv("PGROOT")
+    if env and env ~= "" then return env end
+    local f = io.open("_tools/pg_root.txt", "r")
+    if not f then
+        error("PostgreSQL install not located. Run scripts/setup.ps1 first (or set PGROOT).")
+    end
+    local path = f:read("*a")
+    f:close()
+    -- strip trailing whitespace/newlines
+    return (path:gsub("%s+$", ""))
+end
+local PG_ROOT = read_pg_root()
+local PG_INCLUDE = PG_ROOT .. "/include"
+local PG_LIB = PG_ROOT .. "/lib"
+
 workspace "game-server"
     architecture "x64"
     configurations { "Debug", "Release" }
@@ -97,13 +115,17 @@ project "game-server"
     includedirs {
         "src",
         VENDOR .. "/quill/include",
-        VENDOR .. "/yaml-cpp/include"
+        VENDOR .. "/yaml-cpp/include",
+        PG_INCLUDE
     }
+
+    libdirs { PG_LIB }
 
     defines { "YAML_CPP_STATIC_DEFINE" }
 
     links {
-        "yaml-cpp"
+        "yaml-cpp",
+        "libpq"
     }
 
     filter "system:windows"

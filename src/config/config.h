@@ -16,6 +16,9 @@ struct Config {
     std::string log_level = "info";
     std::string log_file = "logs/game-server.log";
 
+    // database (libpq conninfo string / URI)
+    std::string database_url = "postgresql://postgres:postgres@localhost:5432/game?sslmode=disable";
+
     static Config load(const std::string& path) {
         Config cfg;
         YAML::Node root = YAML::LoadFile(path);
@@ -27,6 +30,10 @@ struct Config {
         if (auto logging = root["logging"]; logging && logging.IsMap()) {
             if (logging["level"]) cfg.log_level = logging["level"].as<std::string>(cfg.log_level);
             if (logging["file"])  cfg.log_file  = logging["file"].as<std::string>(cfg.log_file);
+        }
+
+        if (auto database = root["database"]; database && database.IsMap()) {
+            if (database["url"]) cfg.database_url = database["url"].as<std::string>(cfg.database_url);
         }
 
         return cfg;

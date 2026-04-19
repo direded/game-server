@@ -1,4 +1,5 @@
 #include "config/config.h"
+#include "db/connection.h"
 #include "greeter/greeter.h"
 #include "log/logger.h"
 
@@ -44,6 +45,16 @@ int main(int argc, char* argv[]) {
 
     std::cout << greeting << std::endl;
     LOG_INF("Printed greeting to stdout");
+
+    // Ping the database. Warn-only — server still starts if DB is unreachable,
+    // so dev can work on non-DB features without Postgres running.
+    try {
+        game::db::Connection conn(cfg.database_url);
+        auto res = conn.exec("SELECT COUNT(*) FROM dummy");
+        LOG_INF("DB connected. dummy rows = {}", res.at(0, 0));
+    } catch (const std::exception& e) {
+        LOG_WRN("DB unavailable: {}", e.what());
+    }
 
     LOG_INF("Shutting down");
     return 0;

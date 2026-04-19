@@ -6,3 +6,7 @@ greeting:
 logging:
   level: "info"                  # trace, debug, info, warning, error
   file: "logs/game-server.log"
+
+database:
+  # libpq conninfo string or URI. Keep credentials out of VCS for real deployments.
+  url: "postgresql://postgres:postgres@localhost:5432/game?sslmode=disable"
