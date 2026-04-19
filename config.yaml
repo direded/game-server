@@ -1,0 +1,8 @@
+# Game Server Configuration
+
+greeting:
+  message: "Hello, world!"       # Configurable string returned by greeter::get_greeting()
+
+logging:
+  level: "info"                  # trace, debug, info, warning, error
+  file: "logs/game-server.log"

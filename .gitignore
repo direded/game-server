@@ -1,0 +1,23 @@
+# Build output
+build/
+bin/
+obj/
+logs/
+
+# Vendored dependencies (fetched by scripts/setup.ps1)
+vendor/
+_premake5/bin/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.aps
+*.ncb
+*.vcxproj.filters
+
+# OS
+.DS_Store
+Thumbs.db
