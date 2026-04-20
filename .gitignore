@@ -4,6 +4,9 @@ bin/
 obj/
 logs/
 
+# Ad-hoc acceptance/integration harness (not part of the repo)
+_accept/
+
 # Vendored dependencies (fetched by scripts/setup.ps1)
 vendor/
 _premake5/bin/
