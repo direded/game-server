@@ -31,7 +31,7 @@ public:
                 game::event::EventDispatcher& events,
                 game::sim::SimLoop& sim_loop,
                 Sender private_sender,
-                Config cfg = {});
+                Config cfg);
 
     // Called by the network dispatcher on the IO thread.
     void handle_chat_say(net::ConnId conn, const ::chat::ChatSay& pkt);

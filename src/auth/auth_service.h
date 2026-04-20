@@ -44,7 +44,7 @@ public:
                 session::SessionManager& sessions,
                 AuthRateLimiter& rate_limiter,
                 Sender sender,
-                Config cfg = {},
+                Config cfg,
                 world::CharacterStore* character_store = nullptr);
 
     void handle_register(net::ConnId conn, const ::auth::Register& pkt);

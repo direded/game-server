@@ -19,6 +19,9 @@ src/protocol/generated/
 # Secrets / local config
 .env
 
+# dbmate side-effect — schema dump emitted after every `up`; not the source of truth
+db/schema.sql
+
 # Visual Studio
 .vs/
 *.user

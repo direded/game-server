@@ -29,7 +29,7 @@ public:
         std::chrono::seconds per_account_window{3600};
     };
 
-    explicit AuthRateLimiter(Config cfg = {});
+    explicit AuthRateLimiter(Config cfg);
 
     // Try to consume 1 IP token. Returns true if the request may proceed.
     bool try_consume_ip(std::string_view ip, Clock::time_point now);

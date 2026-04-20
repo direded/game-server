@@ -30,10 +30,13 @@ struct Captured {
 // Test fixture threading the dependencies through the right lifetimes.
 class AuthServiceTest : public ::testing::Test {
 protected:
-    AuthServiceTest() : rate_limiter_(), service_(store_, sessions_, rate_limiter_,
-        [this](ConnId c, const uint8_t* d, size_t l) {
-            captured_.push_back({c, std::vector<uint8_t>(d, d + l)});
-        }) {}
+    AuthServiceTest()
+        : rate_limiter_(AuthRateLimiter::Config{}),
+          service_(store_, sessions_, rate_limiter_,
+                   [this](ConnId c, const uint8_t* d, size_t l) {
+                       captured_.push_back({c, std::vector<uint8_t>(d, d + l)});
+                   },
+                   AuthService::Config{}) {}
 
     void register_conn(ConnId c, const std::string& remote) {
         sessions_.add(c, remote);

@@ -34,7 +34,7 @@ public:
         std::chrono::seconds touch_interval{std::chrono::seconds(300)};
     };
 
-    TokenCache(IAuthStore& underlying, Config cfg = {});
+    TokenCache(IAuthStore& underlying, Config cfg);
 
     // ── IAuthStore passthroughs (no caching of account rows at step 005) ──
     std::optional<AccountRecord> find_account_by_username(std::string_view username) override;

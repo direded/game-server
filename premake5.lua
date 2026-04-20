@@ -1,18 +1,21 @@
 -- premake5.lua
 -- Build system for game server
--- Dependencies are vendored in vendor/ - run scripts/setup.ps1 first
+-- Dependencies are vendored in vendor/ - run scripts/setup.ps1 (Windows) or scripts/setup.sh (Linux) first.
 
 local VENDOR = "vendor"
 
 -- Pre-build command that regenerates FlatBuffers C++ headers if any schema is
 -- newer than its generated output. Applied to every project that includes the
 -- generated headers, so the test project doesn't depend on the server project
--- having been built first.
-local FLATC_PREBUILD = 'powershell -ExecutionPolicy Bypass -File "%{wks.location}/../scripts/flatc-compile.ps1"'
+-- having been built first. The script differs per host OS.
+local FLATC_PREBUILD_WIN   = 'powershell -ExecutionPolicy Bypass -File "%{wks.location}/../scripts/flatc-compile.ps1"'
+local FLATC_PREBUILD_LINUX = 'bash "%{wks.location}/../scripts/flatc-compile.sh"'
 
--- PostgreSQL install root (for libpq). Written by scripts/setup.ps1 into
--- _tools/pg_root.txt, or overridable via the PGROOT env var.
-local function read_pg_root()
+-- PostgreSQL install root (libpq). On Windows it's a per-user install root
+-- written by scripts/setup.ps1 into _tools/pg_root.txt. On Linux we resolve
+-- includes/libs through pg_config (system package: libpq-dev) so most distros
+-- "just work" without a config file.
+local function read_pg_root_windows()
     local env = os.getenv("PGROOT")
     if env and env ~= "" then return env end
     local f = io.open("_tools/pg_root.txt", "r")
@@ -21,23 +24,44 @@ local function read_pg_root()
     end
     local path = f:read("*a")
     f:close()
-    -- strip trailing whitespace/newlines
     return (path:gsub("%s+$", ""))
 end
-local PG_ROOT = read_pg_root()
-local PG_INCLUDE = PG_ROOT .. "/include"
-local PG_LIB = PG_ROOT .. "/lib"
 
--- libsodium (Argon2id + randombytes). Official MSVC prebuilt ships three
--- x64/<Config>/v143/ flavors:
---   static/  — /MT, static lib (CRT mismatch with our /MD → LNK4098)
---   dynamic/ — /MD, DLL (matches our CRT; must ship libsodium.dll)
---   ltcg/    — /MT+LTCG, static lib (same CRT mismatch as static/)
--- Only dynamic/ matches /MD, so we link against its import lib and
--- copy libsodium.dll into the target dir via postbuildcommands.
-local SODIUM_INCLUDE = VENDOR .. "/libsodium/include"
-local SODIUM_LIB_DEBUG   = VENDOR .. "/libsodium/x64/Debug/v143/dynamic"
-local SODIUM_LIB_RELEASE = VENDOR .. "/libsodium/x64/Release/v143/dynamic"
+local function pg_config(flag)
+    local h = io.popen("pg_config " .. flag .. " 2>/dev/null")
+    if not h then return nil end
+    local out = h:read("*a") or ""
+    h:close()
+    out = out:gsub("%s+$", "")
+    if out == "" then return nil end
+    return out
+end
+
+local PG_INCLUDE
+local PG_LIB
+if os.target() == "windows" then
+    local PG_ROOT = read_pg_root_windows()
+    PG_INCLUDE = PG_ROOT .. "/include"
+    PG_LIB     = PG_ROOT .. "/lib"
+else
+    PG_INCLUDE = pg_config("--includedir")
+    PG_LIB     = pg_config("--libdir")
+    if not PG_INCLUDE or not PG_LIB then
+        error("pg_config not found. Install libpq-dev (Debian/Ubuntu: sudo apt install libpq-dev).")
+    end
+end
+
+-- libsodium. Windows uses the official MSVC prebuilt (DLL + import lib).
+-- Linux uses the system package (libsodium-dev) — headers and `libsodium.so`
+-- are on the standard search paths, so no extra include/lib dirs needed.
+local SODIUM_INCLUDE
+local SODIUM_LIB_DEBUG
+local SODIUM_LIB_RELEASE
+if os.target() == "windows" then
+    SODIUM_INCLUDE     = VENDOR .. "/libsodium/include"
+    SODIUM_LIB_DEBUG   = VENDOR .. "/libsodium/x64/Debug/v143/dynamic"
+    SODIUM_LIB_RELEASE = VENDOR .. "/libsodium/x64/Release/v143/dynamic"
+end
 
 workspace "game-server"
     architecture "x64"
@@ -47,7 +71,10 @@ workspace "game-server"
 
     language "C++"
     cppdialect "C++23"
-    toolset "v143" -- VS2022
+
+    filter "system:windows"
+        toolset "v143" -- VS2022
+    filter {}
 
     filter "configurations:Debug"
         defines { "DEBUG", "_DEBUG" }
@@ -169,7 +196,6 @@ project "game-server"
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/ixwebsocket",
         VENDOR .. "/concurrentqueue",
-        SODIUM_INCLUDE,
         PG_INCLUDE
     }
 
@@ -179,25 +205,29 @@ project "game-server"
 
     links {
         "yaml-cpp",
-        "ixwebsocket",
-        "libpq",
-        "libsodium"
+        "ixwebsocket"
     }
-
-    prebuildcommands { FLATC_PREBUILD }
 
     filter "system:windows"
         systemversion "latest"
-        links { "ws2_32", "advapi32" }
-    filter "configurations:Debug"
+        includedirs { SODIUM_INCLUDE }
+        links { "libpq", "libsodium", "ws2_32", "advapi32" }
+        prebuildcommands { FLATC_PREBUILD_WIN }
+    filter "system:linux"
+        links { "pq", "sodium", "pthread", "dl" }
+        prebuildcommands { FLATC_PREBUILD_LINUX }
+        buildoptions { "-Wno-deprecated-declarations" }
+    filter {}
+
+    filter { "system:windows", "configurations:Debug" }
         libdirs { SODIUM_LIB_DEBUG }
         postbuildcommands {
-            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_DEBUG .. '/libsodium.dll" "%{cfg.targetdir}/"'
+            '{COPYFILE} "%{wks.location}/../' .. (SODIUM_LIB_DEBUG or "") .. '/libsodium.dll" "%{cfg.targetdir}/"'
         }
-    filter "configurations:Release"
+    filter { "system:windows", "configurations:Release" }
         libdirs { SODIUM_LIB_RELEASE }
         postbuildcommands {
-            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_RELEASE .. '/libsodium.dll" "%{cfg.targetdir}/"'
+            '{COPYFILE} "%{wks.location}/../' .. (SODIUM_LIB_RELEASE or "") .. '/libsodium.dll" "%{cfg.targetdir}/"'
         }
     filter {}
 
@@ -240,7 +270,6 @@ project "game-server-tests"
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/googletest/googletest/include",
         VENDOR .. "/concurrentqueue",
-        SODIUM_INCLUDE,
         PG_INCLUDE
     }
 
@@ -250,24 +279,28 @@ project "game-server-tests"
 
     links {
         "yaml-cpp",
-        "googletest",
-        "libpq",
-        "libsodium"
+        "googletest"
     }
-
-    prebuildcommands { FLATC_PREBUILD }
 
     filter "system:windows"
         systemversion "latest"
-        links { "ws2_32", "advapi32" }
-    filter "configurations:Debug"
+        includedirs { SODIUM_INCLUDE }
+        links { "libpq", "libsodium", "ws2_32", "advapi32" }
+        prebuildcommands { FLATC_PREBUILD_WIN }
+    filter "system:linux"
+        links { "pq", "sodium", "pthread", "dl" }
+        prebuildcommands { FLATC_PREBUILD_LINUX }
+        buildoptions { "-Wno-deprecated-declarations" }
+    filter {}
+
+    filter { "system:windows", "configurations:Debug" }
         libdirs { SODIUM_LIB_DEBUG }
         postbuildcommands {
-            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_DEBUG .. '/libsodium.dll" "%{cfg.targetdir}/"'
+            '{COPYFILE} "%{wks.location}/../' .. (SODIUM_LIB_DEBUG or "") .. '/libsodium.dll" "%{cfg.targetdir}/"'
         }
-    filter "configurations:Release"
+    filter { "system:windows", "configurations:Release" }
         libdirs { SODIUM_LIB_RELEASE }
         postbuildcommands {
-            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_RELEASE .. '/libsodium.dll" "%{cfg.targetdir}/"'
+            '{COPYFILE} "%{wks.location}/../' .. (SODIUM_LIB_RELEASE or "") .. '/libsodium.dll" "%{cfg.targetdir}/"'
         }
     filter {}
