@@ -10,3 +10,15 @@ logging:
 database:
   # libpq conninfo string or URI. Keep credentials out of VCS for real deployments.
   url: "postgresql://postgres:postgres@localhost:5432/game?sslmode=disable"
+
+network:
+  port: 7777                     # WebSocket listen port (ws:// — TLS comes later)
+  max_connections: 10000         # soft cap; connections beyond this are closed with 1013
+
+auth:
+  session_ttl_days: 30           # token lifetime (sliding — extended on every authenticated packet)
+  handshake_timeout_sec: 10      # disconnect unauthenticated clients idle this long
+  rate_limit:
+    ip_bucket_cap: 10            # token bucket for Register+Login per IP (Resume is exempt)
+    ip_bucket_refill_sec: 6      # 1 token per N seconds
+    per_account_hourly_fails: 20 # per-username login-fail threshold → 1h lockout

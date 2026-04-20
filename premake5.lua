@@ -81,6 +81,39 @@ project "yaml-cpp"
     filter {}
 
 -- ──────────────────────────────────────────────────────────
+-- ixwebsocket — compiled once as a static library. We build with no TLS
+-- (ws:// only for now; step XXX adds wss://) and no zlib (permessage-deflate
+-- disabled). The SSL adapter sources are excluded so we don't have to vendor
+-- mbedtls/openssl just to throw them away.
+-- ──────────────────────────────────────────────────────────
+project "ixwebsocket"
+    kind "StaticLib"
+    language "C++"
+    cppdialect "C++17"
+    targetdir "bin/%{cfg.buildcfg}"
+    objdir "obj/%{cfg.buildcfg}/%{prj.name}"
+
+    files {
+        VENDOR .. "/ixwebsocket/ixwebsocket/*.cpp",
+        VENDOR .. "/ixwebsocket/ixwebsocket/*.h"
+    }
+
+    removefiles {
+        VENDOR .. "/ixwebsocket/ixwebsocket/IXSocketOpenSSL.*",
+        VENDOR .. "/ixwebsocket/ixwebsocket/IXSocketMbedTLS.*",
+        VENDOR .. "/ixwebsocket/ixwebsocket/IXSocketAppleSSL.*"
+    }
+
+    includedirs {
+        VENDOR .. "/ixwebsocket"
+    }
+
+    filter "system:windows"
+        systemversion "latest"
+        defines { "_CRT_SECURE_NO_WARNINGS", "WIN32_LEAN_AND_MEAN" }
+    filter {}
+
+-- ──────────────────────────────────────────────────────────
 -- Google Test — compiled once as a static library
 -- ──────────────────────────────────────────────────────────
 project "googletest"
@@ -123,6 +156,7 @@ project "game-server"
         VENDOR .. "/quill/include",
         VENDOR .. "/yaml-cpp/include",
         VENDOR .. "/flatbuffers/include",
+        VENDOR .. "/ixwebsocket",
         PG_INCLUDE
     }
 
@@ -132,6 +166,7 @@ project "game-server"
 
     links {
         "yaml-cpp",
+        "ixwebsocket",
         "libpq"
     }
 
@@ -139,6 +174,7 @@ project "game-server"
 
     filter "system:windows"
         systemversion "latest"
+        links { "ws2_32" }
     filter {}
 
 -- ──────────────────────────────────────────────────────────
@@ -153,12 +189,19 @@ project "game-server-tests"
     files {
         "src/greeter/**.h",
         "src/greeter/**.cpp",
+        "src/net/framing.h",
+        "src/net/framing.cpp",
+        "src/session/**.h",
+        "src/session/**.cpp",
+        "src/auth/**.h",
+        "src/auth/**.cpp",
         "src/protocol/generated/**.h",
         "tests/**.cpp"
     }
 
     includedirs {
         "src",
+        VENDOR .. "/quill/include",
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/googletest/googletest/include"
     }

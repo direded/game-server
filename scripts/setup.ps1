@@ -23,7 +23,7 @@ $PREMAKE_VERSION = "5.0.0-beta5"
 $PREMAKE_EXE = Join-Path $PREMAKE_DIR "premake5.exe"
 
 if (-Not (Test-Path $PREMAKE_EXE)) {
-    Write-Host "`n[1/8] Downloading Premake5 v$PREMAKE_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[1/9] Downloading Premake5 v$PREMAKE_VERSION..." -ForegroundColor Yellow
     $premakeUrl = "https://github.com/premake/premake-core/releases/download/v$PREMAKE_VERSION/premake-$PREMAKE_VERSION-windows.zip"
     $premakeZip = Join-Path $PREMAKE_DIR "premake.zip"
 
@@ -33,7 +33,7 @@ if (-Not (Test-Path $PREMAKE_EXE)) {
 
     Write-Host "  Premake5 ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[1/8] Premake5 already present" -ForegroundColor Green
+    Write-Host "`n[1/9] Premake5 already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ $QUILL_VERSION = "11.1.0"
 $QUILL_DIR = Join-Path $VENDOR "quill"
 
 if (-Not (Test-Path (Join-Path $QUILL_DIR "include\quill\Backend.h"))) {
-    Write-Host "`n[2/8] Downloading Quill v$QUILL_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[2/9] Downloading Quill v$QUILL_VERSION..." -ForegroundColor Yellow
     $quillUrl = "https://github.com/odygrd/quill/archive/refs/tags/v$QUILL_VERSION.zip"
     $quillZip = Join-Path $VENDOR "quill.zip"
 
@@ -56,7 +56,7 @@ if (-Not (Test-Path (Join-Path $QUILL_DIR "include\quill\Backend.h"))) {
 
     Write-Host "  Quill ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[2/8] Quill already present" -ForegroundColor Green
+    Write-Host "`n[2/9] Quill already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ $YAMLCPP_VERSION = "0.8.0"
 $YAMLCPP_DIR = Join-Path $VENDOR "yaml-cpp"
 
 if (-Not (Test-Path (Join-Path $YAMLCPP_DIR "include\yaml-cpp\yaml.h"))) {
-    Write-Host "`n[3/8] Downloading yaml-cpp v$YAMLCPP_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[3/9] Downloading yaml-cpp v$YAMLCPP_VERSION..." -ForegroundColor Yellow
     $yamlUrl = "https://github.com/jbeder/yaml-cpp/archive/refs/tags/$YAMLCPP_VERSION.zip"
     $yamlZip = Join-Path $VENDOR "yaml-cpp.zip"
 
@@ -79,7 +79,7 @@ if (-Not (Test-Path (Join-Path $YAMLCPP_DIR "include\yaml-cpp\yaml.h"))) {
 
     Write-Host "  yaml-cpp ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[3/8] yaml-cpp already present" -ForegroundColor Green
+    Write-Host "`n[3/9] yaml-cpp already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ $GTEST_VERSION = "1.15.2"
 $GTEST_DIR = Join-Path $VENDOR "googletest"
 
 if (-Not (Test-Path (Join-Path $GTEST_DIR "googletest\include\gtest\gtest.h"))) {
-    Write-Host "`n[4/8] Downloading Google Test v$GTEST_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[4/9] Downloading Google Test v$GTEST_VERSION..." -ForegroundColor Yellow
     $gtestUrl = "https://github.com/google/googletest/archive/refs/tags/v$GTEST_VERSION.zip"
     $gtestZip = Join-Path $VENDOR "googletest.zip"
 
@@ -102,7 +102,7 @@ if (-Not (Test-Path (Join-Path $GTEST_DIR "googletest\include\gtest\gtest.h"))) 
 
     Write-Host "  Google Test ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[4/8] Google Test already present" -ForegroundColor Green
+    Write-Host "`n[4/9] Google Test already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -112,12 +112,12 @@ $DBMATE_VERSION = "2.22.0"
 $DBMATE_EXE = Join-Path $TOOLS_DIR "dbmate.exe"
 
 if (-Not (Test-Path $DBMATE_EXE)) {
-    Write-Host "`n[5/8] Downloading dbmate v$DBMATE_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[5/9] Downloading dbmate v$DBMATE_VERSION..." -ForegroundColor Yellow
     $dbmateUrl = "https://github.com/amacneil/dbmate/releases/download/v$DBMATE_VERSION/dbmate-windows-amd64.exe"
     Invoke-WebRequest -Uri $dbmateUrl -OutFile $DBMATE_EXE -UseBasicParsing
     Write-Host "  dbmate ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[5/8] dbmate already present" -ForegroundColor Green
+    Write-Host "`n[5/9] dbmate already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ $FLATBUFFERS_VERSION = "24.3.25"
 $FLATC_EXE = Join-Path $TOOLS_DIR "flatc.exe"
 
 if (-Not (Test-Path $FLATC_EXE)) {
-    Write-Host "`n[6/8] Downloading flatc v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[6/9] Downloading flatc v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
     $flatcUrl = "https://github.com/google/flatbuffers/releases/download/v$FLATBUFFERS_VERSION/Windows.flatc.binary.zip"
     $flatcZip = Join-Path $TOOLS_DIR "flatc.zip"
 
@@ -137,7 +137,7 @@ if (-Not (Test-Path $FLATC_EXE)) {
 
     Write-Host "  flatc ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[6/8] flatc already present" -ForegroundColor Green
+    Write-Host "`n[6/9] flatc already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ if (-Not (Test-Path $FLATC_EXE)) {
 $FLATBUFFERS_DIR = Join-Path $VENDOR "flatbuffers"
 
 if (-Not (Test-Path (Join-Path $FLATBUFFERS_DIR "include\flatbuffers\flatbuffers.h"))) {
-    Write-Host "`n[7/8] Downloading FlatBuffers sources v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[7/9] Downloading FlatBuffers sources v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
     $fbsUrl = "https://github.com/google/flatbuffers/archive/refs/tags/v$FLATBUFFERS_VERSION.zip"
     $fbsZip = Join-Path $VENDOR "flatbuffers.zip"
 
@@ -163,13 +163,44 @@ if (-Not (Test-Path (Join-Path $FLATBUFFERS_DIR "include\flatbuffers\flatbuffers
 
     Write-Host "  FlatBuffers headers ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[7/8] FlatBuffers headers already present" -ForegroundColor Green
+    Write-Host "`n[7/9] FlatBuffers headers already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
-# 8. PostgreSQL install detection (for libpq headers + import lib)
+# 8. ixwebsocket (compiled as StaticLib by premake)
 # ────────────────────────────────────────────────────────────
-Write-Host "`n[8/8] Detecting local PostgreSQL install..." -ForegroundColor Yellow
+$IXWS_VERSION = "11.4.5"
+$IXWS_DIR = Join-Path $VENDOR "ixwebsocket"
+
+if (-Not (Test-Path (Join-Path $IXWS_DIR "ixwebsocket\IXWebSocket.h"))) {
+    Write-Host "`n[8/9] Downloading ixwebsocket v$IXWS_VERSION..." -ForegroundColor Yellow
+    $ixwsUrl = "https://github.com/machinezone/IXWebSocket/archive/refs/tags/v$IXWS_VERSION.zip"
+    $ixwsZip = Join-Path $VENDOR "ixwebsocket.zip"
+
+    Invoke-WebRequest -Uri $ixwsUrl -OutFile $ixwsZip -UseBasicParsing
+    Expand-Archive -Path $ixwsZip -DestinationPath $VENDOR -Force
+
+    if (Test-Path $IXWS_DIR) { Remove-Item -Recurse -Force $IXWS_DIR }
+    # Keep only the ixwebsocket/ source directory and LICENSE — we don't need the
+    # CMake build, tests, examples, or the related ixbots/ixcobra/etc. projects.
+    $extracted = Join-Path $VENDOR "IXWebSocket-$IXWS_VERSION"
+    New-Item -ItemType Directory -Force -Path $IXWS_DIR | Out-Null
+    Move-Item -Path (Join-Path $extracted "ixwebsocket") -Destination (Join-Path $IXWS_DIR "ixwebsocket")
+    if (Test-Path (Join-Path $extracted "LICENSE.txt")) {
+        Move-Item -Path (Join-Path $extracted "LICENSE.txt") -Destination (Join-Path $IXWS_DIR "LICENSE.txt")
+    }
+    Remove-Item -Recurse -Force $extracted
+    Remove-Item $ixwsZip
+
+    Write-Host "  ixwebsocket ready" -ForegroundColor Green
+} else {
+    Write-Host "`n[8/9] ixwebsocket already present" -ForegroundColor Green
+}
+
+# ────────────────────────────────────────────────────────────
+# 9. PostgreSQL install detection (for libpq headers + import lib)
+# ────────────────────────────────────────────────────────────
+Write-Host "`n[9/9] Detecting local PostgreSQL install..." -ForegroundColor Yellow
 $PG_ROOT = $env:PGROOT
 if (-Not $PG_ROOT) {
     $candidates = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue |
