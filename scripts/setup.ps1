@@ -1,4 +1,4 @@
-# setup.ps1 - Download and set up all vendored dependencies + premake5
+﻿# setup.ps1 - Download and set up all vendored dependencies + premake5
 # Run from the project root: powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
 
 $ErrorActionPreference = "Stop"
@@ -209,7 +209,13 @@ if (-Not (Test-Path (Join-Path $LIBSODIUM_DIR "include\sodium.h"))) {
     $sodiumUrl = "https://download.libsodium.org/libsodium/releases/libsodium-$LIBSODIUM_VERSION-msvc.zip"
     $sodiumZip = Join-Path $VENDOR "libsodium.zip"
 
-    Invoke-WebRequest -Uri $sodiumUrl -OutFile $sodiumZip -UseBasicParsing
+    # download.libsodium.org is frequently slow; curl with retries is far
+    # more reliable than Invoke-WebRequest's default 100s timeout.
+    & curl.exe -fSL --retry 3 --retry-delay 5 -o $sodiumZip $sodiumUrl
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  libsodium download failed (curl exit $LASTEXITCODE)" -ForegroundColor Red
+        exit 1
+    }
     # The archive's top-level dir is "libsodium" — if a stale copy exists,
     # remove it first so Expand-Archive doesn't merge.
     if (Test-Path $LIBSODIUM_DIR) { Remove-Item -Recurse -Force $LIBSODIUM_DIR }
