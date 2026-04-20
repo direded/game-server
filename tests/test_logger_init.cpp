@@ -7,11 +7,25 @@
 
 #include "log/logger.h"
 
+#include <filesystem>
+
 namespace {
+
+// Resolve `<server>/logs/test.log` from this source file's path so the log
+// always lands under server/, regardless of the cwd the test binary was
+// launched in (running the wrapper from the umbrella cwd would otherwise
+// scatter a stray logs/ folder into the parent repo).
+std::string resolve_log_path() {
+    namespace fs = std::filesystem;
+    // __FILE__ → server/tests/test_logger_init.cpp; up two levels → server/.
+    fs::path here(__FILE__);
+    fs::path server_root = here.parent_path().parent_path();
+    return (server_root / "logs" / "test.log").string();
+}
 
 struct TestLoggerInit {
     TestLoggerInit() {
-        game::log::init("logs/test.log", "error");
+        game::log::init(resolve_log_path(), "error");
     }
 };
 
