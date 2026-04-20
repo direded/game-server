@@ -24,6 +24,28 @@ struct TokenCacheConfig {
     uint32_t ttl_sec = 600;  // how long a cache entry stays fresh
 };
 
+struct SimConfig {
+    // Tick period in milliseconds. 250 ms = 4 TPS — the step-006 default.
+    // Do not crank this lower without also tuning the event/command queues;
+    // short ticks amplify any per-tick fixed cost.
+    uint32_t tick_ms = 250;
+};
+
+struct ChatBucketConfig {
+    double bucket_cap = 5.0;
+    double refill_per_sec = 1.0;
+};
+
+struct ChatConfig {
+    // Maximum UTF-8 byte length of a ChatSay.text before it is silently dropped.
+    size_t max_text_bytes = 500;
+    // Per-(account, channel) token buckets. Local defaults are generous enough
+    // for normal room chatter; Global is deliberately tight — a stray macro
+    // can't spam the whole server.
+    ChatBucketConfig local{5.0, 1.0};
+    ChatBucketConfig global{3.0, 0.2};
+};
+
 struct AuthConfig {
     // "postgres" (default) or "memory". memory retained for local dev /
     // CI without Postgres — step-004 in-memory store behind the same
@@ -51,9 +73,11 @@ struct Config {
     // database (libpq conninfo string / URI)
     std::string database_url = "postgresql://postgres:postgres@localhost:5432/game?sslmode=disable";
 
-    // network / auth (step 004)
+    // network / auth (step 004) / sim + chat (step 006)
     NetworkConfig network;
     AuthConfig auth;
+    SimConfig sim;
+    ChatConfig chat;
 
     static Config load(const std::string& path) {
         Config cfg;
@@ -92,6 +116,22 @@ struct Config {
                 if (rl["ip_bucket_cap"]) cfg.auth.rate_limit.ip_bucket_cap = rl["ip_bucket_cap"].as<size_t>(cfg.auth.rate_limit.ip_bucket_cap);
                 if (rl["ip_bucket_refill_sec"]) cfg.auth.rate_limit.ip_bucket_refill_sec = rl["ip_bucket_refill_sec"].as<uint32_t>(cfg.auth.rate_limit.ip_bucket_refill_sec);
                 if (rl["per_account_hourly_fails"]) cfg.auth.rate_limit.per_account_hourly_fails = rl["per_account_hourly_fails"].as<size_t>(cfg.auth.rate_limit.per_account_hourly_fails);
+            }
+        }
+
+        if (auto sim = root["sim"]; sim && sim.IsMap()) {
+            if (sim["tick_ms"]) cfg.sim.tick_ms = sim["tick_ms"].as<uint32_t>(cfg.sim.tick_ms);
+        }
+
+        if (auto chat = root["chat"]; chat && chat.IsMap()) {
+            if (chat["max_text_bytes"]) cfg.chat.max_text_bytes = chat["max_text_bytes"].as<size_t>(cfg.chat.max_text_bytes);
+            if (auto local = chat["local"]; local && local.IsMap()) {
+                if (local["bucket_cap"]) cfg.chat.local.bucket_cap = local["bucket_cap"].as<double>(cfg.chat.local.bucket_cap);
+                if (local["refill_per_sec"]) cfg.chat.local.refill_per_sec = local["refill_per_sec"].as<double>(cfg.chat.local.refill_per_sec);
+            }
+            if (auto global = chat["global"]; global && global.IsMap()) {
+                if (global["bucket_cap"]) cfg.chat.global.bucket_cap = global["bucket_cap"].as<double>(cfg.chat.global.bucket_cap);
+                if (global["refill_per_sec"]) cfg.chat.global.refill_per_sec = global["refill_per_sec"].as<double>(cfg.chat.global.refill_per_sec);
             }
         }
 

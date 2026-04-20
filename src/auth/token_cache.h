@@ -38,6 +38,7 @@ public:
 
     // ── IAuthStore passthroughs (no caching of account rows at step 005) ──
     std::optional<AccountRecord> find_account_by_username(std::string_view username) override;
+    std::optional<AccountRecord> find_account_by_id(AccountId id) override;
     AccountRecord create_account(std::string_view username,
                                  std::string_view password_hash,
                                  std::string_view email) override;

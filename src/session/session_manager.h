@@ -32,6 +32,15 @@ public:
     // the connection has already disconnected.
     void mark_authenticated(net::ConnId id, AccountId account_id);
 
+    // Cache the speaker-display username on the session. Called once after
+    // successful auth so the chat path can fan out `ChatMessage` without a
+    // DB hit. No-op if the connection has already disconnected.
+    void set_username(net::ConnId id, std::string username);
+
+    // Snapshot of conn ids for every Authenticated session. Used by the
+    // event dispatcher to expand Global / Local scopes at flush time.
+    std::vector<net::ConnId> authenticated_conn_ids() const;
+
     // Return conn ids whose session is Unauthenticated and was opened more
     // than `timeout` ago relative to `now`. Used by the transport-side sweep
     // thread to close slow/silent peers; we return ids rather than closing

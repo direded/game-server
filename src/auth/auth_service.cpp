@@ -180,6 +180,7 @@ void AuthService::handle_register(net::ConnId conn, const ::auth::Register& pkt)
     }
 
     sessions_.mark_authenticated(conn, acct.id);
+    sessions_.set_username(conn, acct.username);
     LOG_INF("auth: register success conn={} account={} token={}",
             conn, acct.id, token_fingerprint(token));
 
@@ -235,6 +236,7 @@ void AuthService::handle_login(net::ConnId conn, const ::auth::Login& pkt) {
     }
 
     sessions_.mark_authenticated(conn, acct->id);
+    sessions_.set_username(conn, acct->username);
     LOG_INF("auth: login success conn={} account={} token={}",
             conn, acct->id, token_fingerprint(token));
 
@@ -265,6 +267,12 @@ void AuthService::handle_resume(net::ConnId conn, const ::auth::Resume& pkt) {
     // simply last_seen_at + TTL.
     store_.touch_session(token, now_sys, now_sys + cfg_.session_ttl);
     sessions_.mark_authenticated(conn, rec->account_id);
+    // Resolve the speaker name once so the chat path never hits the DB.
+    // A missing account row on Resume shouldn't be fatal — the session still
+    // authenticates and chat simply shows an empty display name.
+    if (auto acct = store_.find_account_by_id(rec->account_id)) {
+        sessions_.set_username(conn, acct->username);
+    }
     LOG_INF("auth: resume success conn={} account={} token={}",
             conn, rec->account_id, token_fingerprint(token));
 

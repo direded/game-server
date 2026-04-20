@@ -33,6 +33,23 @@ void SessionManager::mark_authenticated(net::ConnId id, AccountId account_id) {
     it->second.account_id = account_id;
 }
 
+void SessionManager::set_username(net::ConnId id, std::string username) {
+    std::lock_guard<std::mutex> lg(mu_);
+    auto it = sessions_.find(id);
+    if (it == sessions_.end()) return;
+    it->second.username = std::move(username);
+}
+
+std::vector<net::ConnId> SessionManager::authenticated_conn_ids() const {
+    std::vector<net::ConnId> out;
+    std::lock_guard<std::mutex> lg(mu_);
+    out.reserve(sessions_.size());
+    for (const auto& [id, s] : sessions_) {
+        if (s.state == AuthState::Authenticated) out.push_back(id);
+    }
+    return out;
+}
+
 std::vector<net::ConnId> SessionManager::collect_handshake_timeouts(
     std::chrono::steady_clock::time_point now,
     std::chrono::seconds timeout) const {

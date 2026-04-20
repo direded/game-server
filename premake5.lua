@@ -168,6 +168,7 @@ project "game-server"
         VENDOR .. "/yaml-cpp/include",
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/ixwebsocket",
+        VENDOR .. "/concurrentqueue",
         SODIUM_INCLUDE,
         PG_INCLUDE
     }
@@ -220,6 +221,12 @@ project "game-server-tests"
         "src/auth/**.cpp",
         "src/db/**.h",
         "src/db/**.cpp",
+        "src/event/**.h",
+        "src/event/**.cpp",
+        "src/sim/**.h",
+        "src/sim/**.cpp",
+        "src/chat/**.h",
+        "src/chat/**.cpp",
         "src/protocol/generated/**.h",
         "tests/**.cpp"
     }
@@ -229,6 +236,7 @@ project "game-server-tests"
         VENDOR .. "/quill/include",
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/googletest/googletest/include",
+        VENDOR .. "/concurrentqueue",
         SODIUM_INCLUDE,
         PG_INCLUDE
     }

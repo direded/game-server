@@ -38,6 +38,7 @@ public:
     virtual ~IAuthStore() = default;
 
     virtual std::optional<AccountRecord> find_account_by_username(std::string_view username) = 0;
+    virtual std::optional<AccountRecord> find_account_by_id(AccountId id) = 0;
     virtual AccountRecord create_account(std::string_view username,
                                          std::string_view password_hash,
                                          std::string_view email) = 0;

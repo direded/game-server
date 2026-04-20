@@ -25,6 +25,10 @@ public:
         ++find_account_calls;
         return inner.find_account_by_username(u);
     }
+    std::optional<AccountRecord> find_account_by_id(AccountId id) override {
+        ++find_account_by_id_calls;
+        return inner.find_account_by_id(id);
+    }
     AccountRecord create_account(std::string_view u, std::string_view h, std::string_view e) override {
         ++create_account_calls;
         return inner.create_account(u, h, e);
@@ -53,6 +57,7 @@ public:
 
     InMemoryAuthStore inner;
     std::atomic<int> find_account_calls{0};
+    std::atomic<int> find_account_by_id_calls{0};
     std::atomic<int> create_account_calls{0};
     std::atomic<int> create_session_calls{0};
     std::atomic<int> find_session_calls{0};

@@ -93,6 +93,23 @@ std::optional<AccountRecord> PostgresAuthStore::find_account_by_username(
     return rec;
 }
 
+std::optional<AccountRecord> PostgresAuthStore::find_account_by_id(AccountId id) {
+    std::lock_guard<std::mutex> lg(mu_);
+
+    const std::string sql =
+        "SELECT id, username, password_hash, COALESCE(email, '') "
+        "FROM accounts WHERE id = $1::bigint";
+    auto res = conn_.exec_params(sql, {std::to_string(id)});
+    if (res.rows() == 0) return std::nullopt;
+
+    AccountRecord rec;
+    rec.id = to_account_id(res.at(0, 0));
+    rec.username = std::string(res.at(0, 1));
+    rec.password_hash = std::string(res.at(0, 2));
+    rec.email = std::string(res.at(0, 3));
+    return rec;
+}
+
 AccountRecord PostgresAuthStore::create_account(std::string_view username,
                                                 std::string_view password_hash,
                                                 std::string_view email) {

@@ -22,6 +22,17 @@ std::optional<AccountRecord> InMemoryAuthStore::find_account_by_username(std::st
     return it->second;
 }
 
+std::optional<AccountRecord> InMemoryAuthStore::find_account_by_id(AccountId id) {
+    std::lock_guard<std::mutex> lg(mu_);
+    // Linear scan — the in-memory store is only used for tests / local
+    // iteration (Postgres covers production), and account counts there stay
+    // in the single digits.
+    for (const auto& [_, rec] : accounts_by_username_) {
+        if (rec.id == id) return rec;
+    }
+    return std::nullopt;
+}
+
 AccountRecord InMemoryAuthStore::create_account(std::string_view username,
                                                 std::string_view password_hash,
                                                 std::string_view email) {

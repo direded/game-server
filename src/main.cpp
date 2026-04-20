@@ -5,15 +5,23 @@
 #include "auth/postgres_auth_store.h"
 #include "auth/session_sweeper.h"
 #include "auth/token_cache.h"
+#include "chat/chat_service.h"
+#include "chat/rate_limiter.h"
 #include "config/config.h"
 #include "db/connection.h"
+#include "event/dispatcher.h"
 #include "greeter/greeter.h"
 #include "log/logger.h"
 #include "net/dispatcher.h"
 #include "net/ix_transport.h"
 #include "protocol/generated/auth_generated.h"
+#include "protocol/generated/chat_generated.h"
 #include "protocol/generated/ping_generated.h"
+#include "protocol/generated/sim_generated.h"
 #include "session/session_manager.h"
+#include "sim/sim_dispatcher.h"
+#include "sim/sim_loop.h"
+#include "sim/world.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -137,6 +145,36 @@ int main(int argc, char* argv[]) {
         },
         as_cfg);
 
+    // ── Sim loop + event dispatcher ───────────────────────────────────────
+    game::sim::World world;
+    game::event::EventDispatcher event_dispatcher(
+        sessions,
+        [&transport](game::net::ConnId c, const uint8_t* data, size_t len) {
+            transport.send(c, data, len);
+        });
+    game::sim::SimLoop sim_loop(world, event_dispatcher,
+                                std::chrono::milliseconds(cfg.sim.tick_ms));
+
+    // ── Chat service (direct IO-thread path, non-sim) ─────────────────────
+    game::chat::RateLimiter::Config chat_rl_cfg;
+    chat_rl_cfg.local.cap = cfg.chat.local.bucket_cap;
+    chat_rl_cfg.local.refill_per_sec = cfg.chat.local.refill_per_sec;
+    chat_rl_cfg.global.cap = cfg.chat.global.bucket_cap;
+    chat_rl_cfg.global.refill_per_sec = cfg.chat.global.refill_per_sec;
+    game::chat::RateLimiter chat_rate_limiter(chat_rl_cfg);
+
+    game::chat::ChatService::Config chat_svc_cfg;
+    chat_svc_cfg.max_text_bytes = cfg.chat.max_text_bytes;
+    game::chat::ChatService chat_service(
+        sessions, chat_rate_limiter, event_dispatcher, sim_loop,
+        [&transport](game::net::ConnId c, const uint8_t* data, size_t len) {
+            transport.send(c, data, len);
+        },
+        chat_svc_cfg);
+
+    // ── Sim packet dispatcher (IO thread → command queue) ─────────────────
+    game::sim::SimDispatcher sim_packet_dispatcher(sim_loop);
+
     game::net::Dispatcher dispatcher;
     dispatcher.register_handler<::auth::Register>(
         "auth.Register",
@@ -147,6 +185,14 @@ int main(int argc, char* argv[]) {
     dispatcher.register_handler<::auth::Resume>(
         "auth.Resume",
         [&](game::net::ConnId c, const ::auth::Resume& p) { auth_service.handle_resume(c, p); });
+    dispatcher.register_handler<::chat::ChatSay>(
+        "chat.ChatSay",
+        [&](game::net::ConnId c, const ::chat::ChatSay& p) { chat_service.handle_chat_say(c, p); });
+    dispatcher.register_handler<::sim::ClientPing>(
+        "sim.ClientPing",
+        [&](game::net::ConnId c, const ::sim::ClientPing& p) {
+            sim_packet_dispatcher.handle_client_ping(c, p);
+        });
 
     transport.on_connect = [&](game::net::ConnId c, std::string_view remote) {
         sessions.add(c, std::string(remote));
@@ -164,6 +210,10 @@ int main(int argc, char* argv[]) {
         LOG_ERR("Failed to start transport: {}", e.what());
         return 1;
     }
+
+    // Start the sim thread once the transport is accepting — ordering: stop
+    // transport → stop sim loop → stop sweeper → close DB on shutdown.
+    sim_loop.start();
 
     // ── Session sweeper (expired Postgres rows + cache eviction) ──────────
     std::unique_ptr<game::auth::SessionSweeper> sweeper;
@@ -211,10 +261,15 @@ int main(int argc, char* argv[]) {
     }
 
     LOG_INF("Shutdown signal received");
+    // Shutdown ordering: transport first (stop accepting + stop delivering
+    // new packets to handlers), then the sim loop (drain + exit), then the
+    // session sweeper and the handshake sweeper, then the DB is closed by
+    // RAII as db_conn goes out of scope.
+    transport.stop();
+    sim_loop.stop();
     handshake_sweeper_stop.store(true);
     if (handshake_sweeper.joinable()) handshake_sweeper.join();
     if (sweeper) sweeper->stop();
-    transport.stop();
 
     LOG_INF("Shutting down");
     return 0;

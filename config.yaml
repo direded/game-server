@@ -27,3 +27,15 @@ auth:
     ip_bucket_cap: 10             # token bucket for Register+Login per IP (Resume is exempt)
     ip_bucket_refill_sec: 6       # 1 token per N seconds
     per_account_hourly_fails: 20  # per-username login-fail threshold → 1h lockout
+
+sim:
+  tick_ms: 250                    # authoritative sim tick period (4 TPS)
+
+chat:
+  max_text_bytes: 500             # ChatSay.text byte cap (messages above this are dropped silently)
+  local:
+    bucket_cap: 5                 # per-(account, Local) token bucket
+    refill_per_sec: 1.0
+  global:
+    bucket_cap: 3                 # per-(account, Global) token bucket; intentionally tighter
+    refill_per_sec: 0.2           # 1 token every 5 seconds

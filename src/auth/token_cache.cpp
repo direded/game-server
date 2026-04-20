@@ -23,6 +23,10 @@ std::optional<AccountRecord> TokenCache::find_account_by_username(
     return underlying_.find_account_by_username(username);
 }
 
+std::optional<AccountRecord> TokenCache::find_account_by_id(AccountId id) {
+    return underlying_.find_account_by_id(id);
+}
+
 AccountRecord TokenCache::create_account(std::string_view username,
                                          std::string_view password_hash,
                                          std::string_view email) {
