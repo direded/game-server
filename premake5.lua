@@ -4,6 +4,12 @@
 
 local VENDOR = "vendor"
 
+-- Pre-build command that regenerates FlatBuffers C++ headers if any schema is
+-- newer than its generated output. Applied to every project that includes the
+-- generated headers, so the test project doesn't depend on the server project
+-- having been built first.
+local FLATC_PREBUILD = 'powershell -ExecutionPolicy Bypass -File "%{wks.location}/../scripts/flatc-compile.ps1"'
+
 -- PostgreSQL install root (for libpq). Written by scripts/setup.ps1 into
 -- _tools/pg_root.txt, or overridable via the PGROOT env var.
 local function read_pg_root()
@@ -116,6 +122,7 @@ project "game-server"
         "src",
         VENDOR .. "/quill/include",
         VENDOR .. "/yaml-cpp/include",
+        VENDOR .. "/flatbuffers/include",
         PG_INCLUDE
     }
 
@@ -127,6 +134,8 @@ project "game-server"
         "yaml-cpp",
         "libpq"
     }
+
+    prebuildcommands { FLATC_PREBUILD }
 
     filter "system:windows"
         systemversion "latest"
@@ -144,17 +153,21 @@ project "game-server-tests"
     files {
         "src/greeter/**.h",
         "src/greeter/**.cpp",
+        "src/protocol/generated/**.h",
         "tests/**.cpp"
     }
 
     includedirs {
         "src",
+        VENDOR .. "/flatbuffers/include",
         VENDOR .. "/googletest/googletest/include"
     }
 
     links {
         "googletest"
     }
+
+    prebuildcommands { FLATC_PREBUILD }
 
     filter "system:windows"
         systemversion "latest"

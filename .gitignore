@@ -9,6 +9,9 @@ vendor/
 _premake5/bin/
 _tools/
 
+# Generated protocol headers (regenerated from ../protocol/*.fbs on every build)
+src/protocol/generated/
+
 # Secrets / local config
 .env
 

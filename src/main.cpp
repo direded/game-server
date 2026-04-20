@@ -2,6 +2,7 @@
 #include "db/connection.h"
 #include "greeter/greeter.h"
 #include "log/logger.h"
+#include "protocol/generated/ping_generated.h"
 
 #include <filesystem>
 #include <iostream>
@@ -54,6 +55,26 @@ int main(int argc, char* argv[]) {
         LOG_INF("DB connected. dummy rows = {}", res.at(0, 0));
     } catch (const std::exception& e) {
         LOG_WRN("DB unavailable: {}", e.what());
+    }
+
+    // Protocol smoke test: prove flatc ran and the generated code works
+    // end-to-end by building a Ping, serializing it, and reading it back.
+    {
+        flatbuffers::FlatBufferBuilder builder;
+        auto encoded = ping::CreatePing(builder, /*nonce=*/42u);
+        builder.Finish(encoded);
+
+        const uint8_t* buf = builder.GetBufferPointer();
+        const auto size    = builder.GetSize();
+        const auto* decoded = ping::GetPing(buf);
+
+        if (decoded->nonce() == 42u) {
+            LOG_INF("Ping flatbuffers roundtrip OK (nonce={}, size={} bytes)",
+                    decoded->nonce(), size);
+        } else {
+            LOG_ERR("Ping flatbuffers roundtrip FAILED: expected nonce=42, got {}",
+                    decoded->nonce());
+        }
     }
 
     LOG_INF("Shutting down");
