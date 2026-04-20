@@ -61,11 +61,14 @@ std::optional<SessionRecord> InMemoryAuthStore::find_session(std::string_view to
     return it->second;
 }
 
-void InMemoryAuthStore::touch_session(std::string_view token, Clock::time_point last_seen_at) {
+void InMemoryAuthStore::touch_session(std::string_view token,
+                                      Clock::time_point last_seen_at,
+                                      Clock::time_point expires_at) {
     std::lock_guard<std::mutex> lg(mu_);
     auto it = sessions_by_token_.find(std::string(token));
     if (it == sessions_by_token_.end()) return;
     it->second.last_seen_at = last_seen_at;
+    it->second.expires_at = expires_at;
 }
 
 void InMemoryAuthStore::delete_session(std::string_view token) {

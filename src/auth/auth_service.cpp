@@ -233,7 +233,11 @@ void AuthService::handle_resume(net::ConnId conn, const ::auth::Resume& pkt) {
         return;
     }
 
-    store_.touch_session(token, now_sys);
+    // Sliding: extend expires_at to now + TTL so an active client keeps
+    // its token alive indefinitely. Prompt spec: max(created_at + TTL,
+    // last_seen_at + TTL) — since last_seen_at >= created_at, this is
+    // simply last_seen_at + TTL.
+    store_.touch_session(token, now_sys, now_sys + cfg_.session_ttl);
     sessions_.mark_authenticated(conn, rec->account_id);
     LOG_INF("auth: resume success conn={} account={} token={}",
             conn, rec->account_id, token_fingerprint(token));

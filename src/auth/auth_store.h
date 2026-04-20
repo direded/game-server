@@ -47,7 +47,10 @@ public:
                                          Clock::time_point created_at,
                                          Clock::time_point expires_at) = 0;
     virtual std::optional<SessionRecord> find_session(std::string_view token) = 0;
-    virtual void touch_session(std::string_view token, Clock::time_point last_seen_at) = 0;
+    // Sliding session: advances last_seen_at and extends expires_at in one hop.
+    virtual void touch_session(std::string_view token,
+                               Clock::time_point last_seen_at,
+                               Clock::time_point expires_at) = 0;
     virtual void delete_session(std::string_view token) = 0;
     virtual void delete_sessions_for_account(AccountId account_id) = 0;
 };

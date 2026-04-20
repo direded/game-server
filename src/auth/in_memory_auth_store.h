@@ -23,7 +23,9 @@ public:
                                  Clock::time_point created_at,
                                  Clock::time_point expires_at) override;
     std::optional<SessionRecord> find_session(std::string_view token) override;
-    void touch_session(std::string_view token, Clock::time_point last_seen_at) override;
+    void touch_session(std::string_view token,
+                       Clock::time_point last_seen_at,
+                       Clock::time_point expires_at) override;
     void delete_session(std::string_view token) override;
     void delete_sessions_for_account(AccountId account_id) override;
 

@@ -80,24 +80,26 @@ TEST(InMemoryAuthStore, FindSessionMissingReturnsNullopt) {
     EXPECT_FALSE(s.find_session("not-a-token").has_value());
 }
 
-TEST(InMemoryAuthStore, TouchSessionUpdatesLastSeenAt) {
+TEST(InMemoryAuthStore, TouchSessionUpdatesLastSeenAndExpiry) {
     InMemoryAuthStore s;
     auto acct = s.create_account("alice", "h", "");
     auto now = Clock::now();
     s.create_session(acct.id, "tok", now, now + std::chrono::hours(1));
 
     const auto later = now + std::chrono::minutes(10);
-    s.touch_session("tok", later);
+    const auto new_exp = later + std::chrono::hours(24);
+    s.touch_session("tok", later, new_exp);
 
     auto found = s.find_session("tok");
     ASSERT_TRUE(found.has_value());
     EXPECT_EQ(found->last_seen_at, later);
+    EXPECT_EQ(found->expires_at, new_exp);
     EXPECT_EQ(found->created_at, now);  // created_at must not move
 }
 
 TEST(InMemoryAuthStore, TouchMissingSessionIsNoop) {
     InMemoryAuthStore s;
-    s.touch_session("nope", Clock::now());
+    s.touch_session("nope", Clock::now(), Clock::now() + std::chrono::hours(1));
     EXPECT_EQ(s.session_count(), 0u);
 }
 

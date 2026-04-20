@@ -310,6 +310,29 @@ TEST_F(AuthServiceTest, ResumeWithValidTokenSucceeds) {
     EXPECT_EQ(s->state, game::session::AuthState::Authenticated);
 }
 
+TEST_F(AuthServiceTest, ResumeExtendsExpiryWindow) {
+    // Sliding session: a successful Resume pushes expires_at forward so an
+    // active client keeps its token indefinitely. Seed a token that would
+    // expire in 10 minutes, Resume it, then verify the stored expires_at is
+    // now (now + session_ttl), not the original 10-minute horizon.
+    auto acct = store_.create_account("alice", "password1", "");
+    using Clock = game::auth::Clock;
+    const auto seed_now = Clock::now();
+    const auto near_exp = seed_now + std::chrono::minutes(10);
+    store_.create_session(acct.id, "tok", seed_now, near_exp);
+
+    register_conn(1, "127.0.0.1");
+    do_resume(1, "tok");
+    ASSERT_EQ(last_packet_id(), kAuthOkId);
+
+    auto updated = store_.find_session("tok");
+    ASSERT_TRUE(updated.has_value());
+    // New expires_at must be well past the original 10-minute horizon —
+    // default session_ttl in AuthService::Config is 30 days.
+    EXPECT_GT(updated->expires_at, near_exp + std::chrono::hours(24));
+    EXPECT_GT(updated->last_seen_at, seed_now);
+}
+
 TEST_F(AuthServiceTest, ResumeWithExpiredTokenFails) {
     // Seed an already-expired session directly into the store.
     auto acct = store_.create_account("alice", "password1", "");
