@@ -140,12 +140,7 @@ void AuthService::handle_register(net::ConnId conn, const ::auth::Register& pkt)
         return;
     }
     if (!email.empty() && !is_valid_email(email)) {
-        // Treat malformed email as invalid-username too? No — spec only says
-        // "basic sanity", so report as ServerError-equivalent. Most user-friendly
-        // option is to reuse UsernameInvalid... but that'd be misleading. Use
-        // UsernameInvalid anyway to avoid growing the enum now. The client
-        // should validate before send.
-        send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_UsernameInvalid));
+        send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_EmailInvalid));
         return;
     }
 

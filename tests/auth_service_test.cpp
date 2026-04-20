@@ -145,6 +145,7 @@ TEST_F(AuthServiceTest, RegisterRejectsMalformedEmail) {
     register_conn(1, "127.0.0.1");
     do_register(1, "alice", "password1", "not-an-email");
     EXPECT_EQ(last_packet_id(), kAuthFailId);
+    EXPECT_EQ(last_auth_fail_reason(), ::auth::AuthFailReason_EmailInvalid);
 }
 
 TEST_F(AuthServiceTest, RegisterRejectsDuplicateUsername) {
