@@ -1,7 +1,6 @@
 #pragma once
 
 #include "sim/command.h"
-#include "sim/world.h"
 
 #include <concurrentqueue.h>
 
@@ -12,8 +11,11 @@
 #include <thread>
 
 namespace game::event { class EventDispatcher; }
+namespace game::world { class World; }
 
 namespace game::sim {
+
+class ActionResolver;
 
 // The authoritative tick loop. Owns one dedicated thread, the world,
 // and an MPSC-friendly command queue.
@@ -35,9 +37,15 @@ namespace game::sim {
 // after a stall.
 class SimLoop {
 public:
-    SimLoop(World& world, game::event::EventDispatcher& events,
+    SimLoop(game::world::World& world, game::event::EventDispatcher& events,
             std::chrono::milliseconds tick_period);
     ~SimLoop();
+
+    // Optional resolver run after the command drain and before world.advance().
+    // Currently the only resolver — ActionResolver — advances character
+    // actions and emits ActionCompleted / CharacterEntered / CharacterLeft
+    // events. Set once at construction time; called from the sim thread only.
+    void set_action_resolver(ActionResolver* r) { action_resolver_ = r; }
 
     SimLoop(const SimLoop&) = delete;
     SimLoop& operator=(const SimLoop&) = delete;
@@ -63,9 +71,10 @@ private:
     void run();
     void process_one_tick();
 
-    World& world_;
+    game::world::World& world_;
     game::event::EventDispatcher& events_;
     std::chrono::milliseconds tick_period_;
+    ActionResolver* action_resolver_ = nullptr;
 
     std::atomic<bool> running_{false};
     std::atomic<uint64_t> tick_count_{0};

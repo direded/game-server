@@ -1,0 +1,31 @@
+# Static location graph loaded once at startup. Immutable after load (dynamic
+# locations / instancing are future work). Validation rules enforced by
+# locations_loader: spawn id must exist, every link target must exist, every
+# link must have a matching reverse on the destination, ids unique,
+# travel_ticks > 0.
+
+spawn_location_id: 1
+
+locations:
+  - id: 1
+    name: Town
+    description: A small quiet town square.
+    links:
+      - to: 2
+        travel_ticks: 8       # 2 seconds at 4 TPS
+
+  - id: 2
+    name: Forest
+    description: A dense forest, the air is cool.
+    links:
+      - to: 1
+        travel_ticks: 8
+      - to: 3
+        travel_ticks: 12      # 3 seconds
+
+  - id: 3
+    name: Clearing
+    description: A sunlit clearing in the woods.
+    links:
+      - to: 2
+        travel_ticks: 12

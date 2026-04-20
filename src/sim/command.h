@@ -3,17 +3,16 @@
 #include <cstdint>
 
 namespace game::event { class EventDispatcher; }
+namespace game::world { class World; }
 
 namespace game::sim {
-
-struct World;
 
 // Context passed into each command on execute. Lives only for the duration
 // of a single execute() call; safe to hold references.
 struct CommandContext {
-    World& world;
+    game::world::World& world;
     game::event::EventDispatcher& events;
-    uint64_t tick;  // value of world.tick at the start of command processing
+    uint64_t tick;  // value of world.tick() at the start of command processing
 };
 
 // Base class for commands pushed through the sim command queue. Commands are

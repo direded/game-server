@@ -36,6 +36,13 @@ struct ChatBucketConfig {
     double refill_per_sec = 1.0;
 };
 
+struct WorldConfig {
+    // Path (relative to the server binary) to the locations YAML loaded by
+    // locations_loader at startup. The graph is immutable for the server's
+    // lifetime — see step-007 scope notes.
+    std::string locations_file = "config/locations.yaml";
+};
+
 struct ChatConfig {
     // Maximum UTF-8 byte length of a ChatSay.text before it is silently dropped.
     size_t max_text_bytes = 500;
@@ -73,11 +80,12 @@ struct Config {
     // database (libpq conninfo string / URI)
     std::string database_url = "postgresql://postgres:postgres@localhost:5432/game?sslmode=disable";
 
-    // network / auth (step 004) / sim + chat (step 006)
+    // network / auth (step 004) / sim + chat (step 006) / world (step 007)
     NetworkConfig network;
     AuthConfig auth;
     SimConfig sim;
     ChatConfig chat;
+    WorldConfig world;
 
     static Config load(const std::string& path) {
         Config cfg;
@@ -121,6 +129,10 @@ struct Config {
 
         if (auto sim = root["sim"]; sim && sim.IsMap()) {
             if (sim["tick_ms"]) cfg.sim.tick_ms = sim["tick_ms"].as<uint32_t>(cfg.sim.tick_ms);
+        }
+
+        if (auto world = root["world"]; world && world.IsMap()) {
+            if (world["locations_file"]) cfg.world.locations_file = world["locations_file"].as<std::string>(cfg.world.locations_file);
         }
 
         if (auto chat = root["chat"]; chat && chat.IsMap()) {

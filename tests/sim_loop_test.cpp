@@ -3,7 +3,7 @@
 #include "session/session_manager.h"
 #include "sim/command.h"
 #include "sim/sim_loop.h"
-#include "sim/world.h"
+#include "world/world.h"
 
 #include <gtest/gtest.h>
 
@@ -38,7 +38,7 @@ struct CountCommand : public game::sim::Command {
 
 // ── The loop advances the tick counter under wall-clock time ──────────────
 TEST(SimLoop, AdvancesTickCountOverTime) {
-    game::sim::World world;
+    game::world::World world;
     game::session::SessionManager sessions;
     game::event::EventDispatcher dispatcher(sessions, [](auto, auto, auto){});
     game::sim::SimLoop loop(world, dispatcher, std::chrono::milliseconds(20));
@@ -54,7 +54,7 @@ TEST(SimLoop, AdvancesTickCountOverTime) {
 
 // ── A command pushed from thread A is executed on the sim thread ──────────
 TEST(SimLoop, CommandEnqueuedFromAnotherThreadExecutes) {
-    game::sim::World world;
+    game::world::World world;
     game::session::SessionManager sessions;
     game::event::EventDispatcher dispatcher(sessions, [](auto, auto, auto){});
     game::sim::SimLoop loop(world, dispatcher, std::chrono::milliseconds(20));
@@ -75,7 +75,7 @@ TEST(SimLoop, CommandEnqueuedFromAnotherThreadExecutes) {
 
 // ── Events emitted inside a tick are flushed in the same tick ─────────────
 TEST(SimLoop, EmittedEventsFlushInSameTick) {
-    game::sim::World world;
+    game::world::World world;
     game::session::SessionManager sessions;
 
     std::atomic<int> sends{0};
@@ -103,7 +103,7 @@ TEST(SimLoop, EmittedEventsFlushInSameTick) {
 
 // ── Commands pushed after stop() are never executed ───────────────────────
 TEST(SimLoop, StopDiscardsQueuedCommands) {
-    game::sim::World world;
+    game::world::World world;
     game::session::SessionManager sessions;
     game::event::EventDispatcher dispatcher(sessions, [](auto, auto, auto){});
     game::sim::SimLoop loop(world, dispatcher, std::chrono::milliseconds(5));
@@ -124,7 +124,7 @@ TEST(SimLoop, StopDiscardsQueuedCommands) {
 
 // ── tick_count() is visible to other threads between ticks ────────────────
 TEST(SimLoop, TickCountIsVisibleToProducerThreads) {
-    game::sim::World world;
+    game::world::World world;
     game::session::SessionManager sessions;
     game::event::EventDispatcher dispatcher(sessions, [](auto, auto, auto){});
     game::sim::SimLoop loop(world, dispatcher, std::chrono::milliseconds(5));

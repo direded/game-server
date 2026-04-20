@@ -8,6 +8,8 @@
 #include <mutex>
 #include <vector>
 
+namespace game::world { class World; }
+
 namespace game::event {
 
 // Accumulates per-tick events on the sim thread (and on IO threads for the
@@ -26,6 +28,12 @@ public:
 
     EventDispatcher(session::SessionManager& sessions, Sender sender);
 
+    // Wire the World up after construction (avoids a circular dependency
+    // between SimLoop, World, and EventDispatcher at construction time).
+    // Without a World, Local-scope events fall back to Global routing —
+    // useful in tests that don't care about location filtering.
+    void set_world(const game::world::World* w) { world_ = w; }
+
     // Enqueue an event for the next flush. Safe to call from any thread.
     void emit(Event ev);
 
@@ -41,6 +49,7 @@ public:
 private:
     session::SessionManager& sessions_;
     Sender sender_;
+    const game::world::World* world_ = nullptr;
 
     mutable std::mutex mu_;
     std::vector<Event> pending_;

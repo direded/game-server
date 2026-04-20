@@ -1,6 +1,8 @@
 #include "event/dispatcher.h"
 
 #include "log/logger.h"
+#include "world/location.h"
+#include "world/world.h"
 
 namespace game::event {
 
@@ -37,13 +39,30 @@ void EventDispatcher::flush() {
                 break;
             }
             case EventScope::Local: {
-                // TODO(step-007): filter to sessions whose character is in
-                // `ev.local_location`. Step-006 has no world model, so Local
-                // fans out to every Authenticated session — behaviourally
-                // identical to Global for now.
-                const auto targets = sessions_.authenticated_conn_ids();
-                for (auto conn : targets) {
-                    sender_(conn, ev.payload.data(), ev.payload.size());
+                // Resolve to the set of characters currently in the named
+                // location; for each, look up the bound session and send.
+                // Falls back to Global fan-out if no World is wired (used by
+                // legacy tests that predate step-007).
+                if (world_ == nullptr) {
+                    const auto targets = sessions_.authenticated_conn_ids();
+                    for (auto conn : targets) {
+                        sender_(conn, ev.payload.data(), ev.payload.size());
+                    }
+                    break;
+                }
+                const auto* loc = world_->location(ev.local_location);
+                if (loc == nullptr) {
+                    // Unknown location id on a Local event is a programming
+                    // bug, not a hostile-peer concern — log it loudly so it
+                    // shows up in tests, then drop the event.
+                    LOG_WRN("event: Local event for unknown location {}",
+                            ev.local_location);
+                    break;
+                }
+                for (auto char_id : loc->characters) {
+                    if (auto conn = sessions_.session_for_character(char_id)) {
+                        sender_(*conn, ev.payload.data(), ev.payload.size());
+                    }
                 }
                 break;
             }

@@ -4,6 +4,7 @@
 #include "log/logger.h"
 #include "net/framing.h"
 #include "protocol/generated/auth_generated.h"
+#include "world/character_store.h"
 
 #include <algorithm>
 #include <array>
@@ -11,6 +12,7 @@
 #include <exception>
 #include <sstream>
 #include <iomanip>
+#include <vector>
 
 namespace game::auth {
 
@@ -49,9 +51,10 @@ AuthService::AuthService(IAuthStore& store,
                          session::SessionManager& sessions,
                          AuthRateLimiter& rate_limiter,
                          Sender sender,
-                         Config cfg)
+                         Config cfg,
+                         world::CharacterStore* character_store)
     : store_(store), sessions_(sessions), rate_limiter_(rate_limiter),
-      sender_(std::move(sender)), cfg_(cfg) {}
+      sender_(std::move(sender)), cfg_(cfg), character_store_(character_store) {}
 
 bool AuthService::is_valid_username(std::string_view s) {
     if (s.size() < kMinUsername || s.size() > kMaxUsername) return false;
@@ -92,12 +95,26 @@ std::string AuthService::remote_ip_of(net::ConnId conn) const {
     return s->remote_addr;
 }
 
-void AuthService::send_auth_ok(net::ConnId conn, std::string_view token) {
+void AuthService::send_auth_ok(net::ConnId conn, std::string_view token,
+                               AccountId account_id) {
     flatbuffers::FlatBufferBuilder fbb;
     auto token_off = fbb.CreateString(std::string(token));
-    // characters[] is always empty until step 007 introduces the character model.
-    std::vector<flatbuffers::Offset<::auth::CharacterSummary>> empty;
-    auto chars_off = fbb.CreateVector(empty);
+    std::vector<flatbuffers::Offset<::auth::CharacterSummary>> rows;
+    if (character_store_) {
+        try {
+            for (const auto& c : character_store_->list_by_account(account_id)) {
+                auto name_off = fbb.CreateString(c.name);
+                rows.push_back(::auth::CreateCharacterSummary(
+                    fbb, c.id, name_off, c.location_id));
+            }
+        } catch (const std::exception& e) {
+            // Don't fail the AuthOk because the character list query failed —
+            // the client can refresh via ListCharacters. Log and continue.
+            LOG_WRN("auth: AuthOk character-list lookup failed account={}: {}",
+                    account_id, e.what());
+        }
+    }
+    auto chars_off = fbb.CreateVector(rows);
     auto root = ::auth::CreateAuthOk(fbb, token_off, chars_off);
     fbb.Finish(root);
 
@@ -184,7 +201,7 @@ void AuthService::handle_register(net::ConnId conn, const ::auth::Register& pkt)
     LOG_INF("auth: register success conn={} account={} token={}",
             conn, acct.id, token_fingerprint(token));
 
-    send_auth_ok(conn, token);
+    send_auth_ok(conn, token, acct.id);
 }
 
 void AuthService::handle_login(net::ConnId conn, const ::auth::Login& pkt) {
@@ -240,7 +257,7 @@ void AuthService::handle_login(net::ConnId conn, const ::auth::Login& pkt) {
     LOG_INF("auth: login success conn={} account={} token={}",
             conn, acct->id, token_fingerprint(token));
 
-    send_auth_ok(conn, token);
+    send_auth_ok(conn, token, acct->id);
 }
 
 void AuthService::handle_resume(net::ConnId conn, const ::auth::Resume& pkt) {
@@ -276,7 +293,7 @@ void AuthService::handle_resume(net::ConnId conn, const ::auth::Resume& pkt) {
     LOG_INF("auth: resume success conn={} account={} token={}",
             conn, rec->account_id, token_fingerprint(token));
 
-    send_auth_ok(conn, token);
+    send_auth_ok(conn, token, rec->account_id);
 }
 
 } // namespace game::auth

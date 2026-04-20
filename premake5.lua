@@ -227,6 +227,8 @@ project "game-server-tests"
         "src/sim/**.cpp",
         "src/chat/**.h",
         "src/chat/**.cpp",
+        "src/world/**.h",
+        "src/world/**.cpp",
         "src/protocol/generated/**.h",
         "tests/**.cpp"
     }
@@ -234,6 +236,7 @@ project "game-server-tests"
     includedirs {
         "src",
         VENDOR .. "/quill/include",
+        VENDOR .. "/yaml-cpp/include",
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/googletest/googletest/include",
         VENDOR .. "/concurrentqueue",
@@ -243,7 +246,10 @@ project "game-server-tests"
 
     libdirs { PG_LIB }
 
+    defines { "YAML_CPP_STATIC_DEFINE" }
+
     links {
+        "yaml-cpp",
         "googletest",
         "libpq",
         "libsodium"

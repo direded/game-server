@@ -4,6 +4,7 @@
 #include "event/event.h"
 #include "log/logger.h"
 #include "net/framing.h"
+#include "protocol/generated/action_generated.h"
 #include "protocol/generated/chat_generated.h"
 #include "sim/sim_loop.h"
 
@@ -88,6 +89,22 @@ void ChatService::handle_chat_say(net::ConnId conn, const ::chat::ChatSay& pkt) 
         return;
     }
 
+    // Local chat needs a selected character (it routes by location). Per the
+    // step-007 spec, missing-character on a gameplay packet replies with
+    // action.ActionRejected{NoCharacterSelected}. Global chat is account-level
+    // and works without a character. Packet-shape validation runs first so
+    // a malformed packet doesn't masquerade as a "no character selected" error.
+    if (channel == ::chat::ChatChannel_Local && !sess->character_id) {
+        flatbuffers::FlatBufferBuilder fbb;
+        auto root = ::action::CreateActionRejected(
+            fbb, ::action::ActionRejectReason_NoCharacterSelected);
+        fbb.Finish(root);
+        auto framed = net::encode(net::packet_id("action.ActionRejected"),
+                                  fbb.GetBufferPointer(), fbb.GetSize());
+        private_sender_(conn, framed.data(), framed.size());
+        return;
+    }
+
     const auto account_id = sess->account_id.value();
     const auto now = std::chrono::steady_clock::now();
     const auto rl_channel = to_rl_channel(channel);
@@ -114,12 +131,15 @@ void ChatService::handle_chat_say(net::ConnId conn, const ::chat::ChatSay& pkt) 
     auto framed = net::encode(pid, fbb.GetBufferPointer(), fbb.GetSize());
 
     game::event::Event ev;
-    // Global chat still fans out broadly — for step-006 both scopes land on
-    // every Authenticated session (the dispatcher has no location filter
-    // until step-007), but the scope records intent for the future.
-    ev.scope = (channel == ::chat::ChatChannel_Global)
-                   ? game::event::EventScope::Global
-                   : game::event::EventScope::Local;
+    if (channel == ::chat::ChatChannel_Global) {
+        ev.scope = game::event::EventScope::Global;
+    } else {
+        ev.scope = game::event::EventScope::Local;
+        // Route by the speaker's cached session.location_id. The sim thread
+        // updates this via SessionManager::update_character_location whenever
+        // an action moves the character.
+        ev.local_location = sess->location_id;
+    }
     ev.packet_id = pid;
     ev.payload = std::move(framed);
     events_.emit(std::move(ev));

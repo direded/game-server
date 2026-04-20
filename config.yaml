@@ -31,6 +31,9 @@ auth:
 sim:
   tick_ms: 250                    # authoritative sim tick period (4 TPS)
 
+world:
+  locations_file: "config/locations.yaml"  # YAML graph loaded once at startup; immutable thereafter
+
 chat:
   max_text_bytes: 500             # ChatSay.text byte cap (messages above this are dropped silently)
   local:

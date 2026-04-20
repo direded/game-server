@@ -2,10 +2,12 @@
 
 #include "event/dispatcher.h"
 #include "log/logger.h"
+#include "sim/action_resolver.h"
+#include "world/world.h"
 
 namespace game::sim {
 
-SimLoop::SimLoop(World& world, game::event::EventDispatcher& events,
+SimLoop::SimLoop(game::world::World& world, game::event::EventDispatcher& events,
                  std::chrono::milliseconds tick_period)
     : world_(world), events_(events), tick_period_(tick_period) {}
 
@@ -45,7 +47,7 @@ void SimLoop::push_command(std::unique_ptr<Command> cmd) {
 void SimLoop::process_one_tick() {
     // 1. Drain queue.
     std::unique_ptr<Command> cmd;
-    CommandContext ctx{world_, events_, world_.tick};
+    CommandContext ctx{world_, events_, world_.tick()};
     while (queue_.try_dequeue(cmd)) {
         try {
             cmd->execute(ctx);
@@ -54,14 +56,23 @@ void SimLoop::process_one_tick() {
         }
     }
 
-    // 2. Advance world.
+    // 2. Advance any in-flight character actions (Travel, ...).
+    if (action_resolver_) {
+        try {
+            action_resolver_->tick(world_, events_);
+        } catch (const std::exception& e) {
+            LOG_ERR("sim: action_resolver threw: {}", e.what());
+        }
+    }
+
+    // 3. Advance world tick counter.
     world_.advance();
 
-    // 3. Expose the new tick count before flushing, so any event consumer
+    // 4. Expose the new tick count before flushing, so any event consumer
     //    that re-reads tick_count() during fanout sees the current value.
-    tick_count_.store(world_.tick, std::memory_order_relaxed);
+    tick_count_.store(world_.tick(), std::memory_order_relaxed);
 
-    // 4. Flush events.
+    // 5. Flush events.
     events_.flush();
 }
 

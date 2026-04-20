@@ -14,14 +14,20 @@
 #include "log/logger.h"
 #include "net/dispatcher.h"
 #include "net/ix_transport.h"
+#include "protocol/generated/action_generated.h"
 #include "protocol/generated/auth_generated.h"
 #include "protocol/generated/chat_generated.h"
 #include "protocol/generated/ping_generated.h"
 #include "protocol/generated/sim_generated.h"
+#include "protocol/generated/world_generated.h"
 #include "session/session_manager.h"
+#include "sim/action_resolver.h"
 #include "sim/sim_dispatcher.h"
 #include "sim/sim_loop.h"
-#include "sim/world.h"
+#include "world/character_service.h"
+#include "world/character_store.h"
+#include "world/locations_loader.h"
+#include "world/world.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -136,6 +142,38 @@ int main(int argc, char* argv[]) {
     game::net::IxTransport transport;
     transport.set_max_connections(cfg.network.max_connections);
 
+    // ── World: locations + characters (in-RAM, sim-thread-owned) ──────────
+    game::world::World world;
+    try {
+        auto graph = game::world::load_locations(cfg.world.locations_file);
+        world.install_locations(std::move(graph));
+        LOG_INF("World: loaded {} locations from {} (spawn={})",
+                world.locations().size(), cfg.world.locations_file,
+                world.spawn_location_id());
+    } catch (const std::exception& e) {
+        LOG_ERR("Failed to load world locations from {}: {}",
+                cfg.world.locations_file, e.what());
+        return 1;
+    }
+
+    // CharacterStore is only available with the Postgres backend (it shares
+    // the libpq connection). With memory backend, character creation isn't
+    // supported in step 007 — auth still works, AuthOk.characters is empty.
+    std::unique_ptr<game::world::CharacterStore> character_store;
+    if (db_conn) {
+        character_store = std::make_unique<game::world::CharacterStore>(*db_conn);
+        try {
+            auto chars = character_store->load_all();
+            LOG_INF("World: loaded {} characters from DB", chars.size());
+            world.install_characters(std::move(chars));
+        } catch (const std::exception& e) {
+            LOG_ERR("Failed to load characters from DB: {}", e.what());
+            return 1;
+        }
+    } else {
+        LOG_WRN("auth.backend=memory: character store disabled — Create/List/Select not available");
+    }
+
     game::auth::AuthService::Config as_cfg;
     as_cfg.session_ttl = std::chrono::hours(24) * cfg.auth.session_ttl_days;
     game::auth::AuthService auth_service(
@@ -143,17 +181,21 @@ int main(int argc, char* argv[]) {
         [&transport](game::net::ConnId c, const uint8_t* data, size_t len) {
             transport.send(c, data, len);
         },
-        as_cfg);
+        as_cfg, character_store.get());
 
     // ── Sim loop + event dispatcher ───────────────────────────────────────
-    game::sim::World world;
     game::event::EventDispatcher event_dispatcher(
         sessions,
         [&transport](game::net::ConnId c, const uint8_t* data, size_t len) {
             transport.send(c, data, len);
         });
+    event_dispatcher.set_world(&world);
     game::sim::SimLoop sim_loop(world, event_dispatcher,
                                 std::chrono::milliseconds(cfg.sim.tick_ms));
+
+    // ActionResolver runs each tick between command drain and world.advance().
+    game::sim::ActionResolver action_resolver(sessions);
+    sim_loop.set_action_resolver(&action_resolver);
 
     // ── Chat service (direct IO-thread path, non-sim) ─────────────────────
     game::chat::RateLimiter::Config chat_rl_cfg;
@@ -175,6 +217,17 @@ int main(int argc, char* argv[]) {
     // ── Sim packet dispatcher (IO thread → command queue) ─────────────────
     game::sim::SimDispatcher sim_packet_dispatcher(sim_loop);
 
+    // ── Character / action service (gated on the DB-backed character store) ─
+    std::unique_ptr<game::world::CharacterService> character_service;
+    if (character_store) {
+        character_service = std::make_unique<game::world::CharacterService>(
+            sessions, *character_store, sim_loop, transport,
+            world.spawn_location_id(),
+            [&transport](game::net::ConnId c, const uint8_t* data, size_t len) {
+                transport.send(c, data, len);
+            });
+    }
+
     game::net::Dispatcher dispatcher;
     dispatcher.register_handler<::auth::Register>(
         "auth.Register",
@@ -193,11 +246,48 @@ int main(int argc, char* argv[]) {
         [&](game::net::ConnId c, const ::sim::ClientPing& p) {
             sim_packet_dispatcher.handle_client_ping(c, p);
         });
+    if (character_service) {
+        auto* svc = character_service.get();
+        dispatcher.register_handler<::world::CreateCharacter>(
+            "world.CreateCharacter",
+            [svc](game::net::ConnId c, const ::world::CreateCharacter& p) {
+                svc->handle_create_character(c, p);
+            });
+        dispatcher.register_handler<::world::ListCharacters>(
+            "world.ListCharacters",
+            [svc](game::net::ConnId c, const ::world::ListCharacters& p) {
+                svc->handle_list_characters(c, p);
+            });
+        dispatcher.register_handler<::world::SelectCharacter>(
+            "world.SelectCharacter",
+            [svc](game::net::ConnId c, const ::world::SelectCharacter& p) {
+                svc->handle_select_character(c, p);
+            });
+        dispatcher.register_handler<::world::DeselectCharacter>(
+            "world.DeselectCharacter",
+            [svc](game::net::ConnId c, const ::world::DeselectCharacter& p) {
+                svc->handle_deselect_character(c, p);
+            });
+        dispatcher.register_handler<::action::StartAction>(
+            "action.StartAction",
+            [svc](game::net::ConnId c, const ::action::StartAction& p) {
+                svc->handle_start_action(c, p);
+            });
+        dispatcher.register_handler<::action::CancelAction>(
+            "action.CancelAction",
+            [svc](game::net::ConnId c, const ::action::CancelAction& p) {
+                svc->handle_cancel_action(c, p);
+            });
+    }
 
     transport.on_connect = [&](game::net::ConnId c, std::string_view remote) {
         sessions.add(c, std::string(remote));
     };
     transport.on_disconnect = [&](game::net::ConnId c) {
+        // Push the world-side cleanup before removing the session — the
+        // command captures the character_id from the still-present session,
+        // and the sim thread will broadcast CharacterLeft / cancel any action.
+        if (character_service) character_service->handle_disconnect(c);
         sessions.remove(c);
     };
     transport.on_message = [&](game::net::ConnId c, const uint8_t* data, size_t len) {

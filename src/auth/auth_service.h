@@ -12,6 +12,8 @@
 #include <string>
 #include <string_view>
 
+namespace game::world { class CharacterStore; }
+
 // Forward-declare the generated FlatBuffers packet types so this header
 // doesn't drag in the generated code.
 namespace auth {
@@ -36,11 +38,14 @@ public:
         std::chrono::hours session_ttl{24 * 30};  // 30 days
     };
 
+    // `character_store` is optional: nullptr when auth.backend == memory (no DB
+    // available). When null, AuthOk.characters is always empty.
     AuthService(IAuthStore& store,
                 session::SessionManager& sessions,
                 AuthRateLimiter& rate_limiter,
                 Sender sender,
-                Config cfg = {});
+                Config cfg = {},
+                world::CharacterStore* character_store = nullptr);
 
     void handle_register(net::ConnId conn, const ::auth::Register& pkt);
     void handle_login(net::ConnId conn, const ::auth::Login& pkt);
@@ -56,8 +61,9 @@ public:
     static std::string generate_token();
 
 private:
-    // Encode and dispatch the response packet via sender_.
-    void send_auth_ok(net::ConnId conn, std::string_view token);
+    // Encode and dispatch the response packet via sender_. account_id is used
+    // to fetch the character list for AuthOk.characters (none if no store).
+    void send_auth_ok(net::ConnId conn, std::string_view token, AccountId account_id);
     void send_auth_fail(net::ConnId conn, uint8_t reason);
 
     std::string remote_ip_of(net::ConnId conn) const;
@@ -67,6 +73,7 @@ private:
     AuthRateLimiter& rate_limiter_;
     Sender sender_;
     Config cfg_;
+    world::CharacterStore* character_store_ = nullptr;
 };
 
 } // namespace game::auth

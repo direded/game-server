@@ -5,7 +5,7 @@
 #include "protocol/generated/chat_generated.h"
 #include "session/session_manager.h"
 #include "sim/sim_loop.h"
-#include "sim/world.h"
+#include "world/world.h"
 
 #include <flatbuffers/flatbuffers.h>
 #include <gtest/gtest.h>
@@ -41,7 +41,7 @@ const ::chat::ChatSay& parse_chat_say(const std::vector<uint8_t>& bytes) {
 // A harness that wires the chat service + its downstream dispatcher.
 struct Fixture {
     game::session::SessionManager sessions;
-    game::sim::World world;
+    game::world::World world;
     // EventDispatcher for this fixture mirrors each event directly into
     // `dispatch_log` as a (scope, conn)-shaped record so tests assert routing.
     SendLog dispatch_log;
@@ -64,6 +64,10 @@ struct Fixture {
         sessions.add(c, "test-ip");
         sessions.mark_authenticated(c, a);
         sessions.set_username(c, std::move(name));
+        // Bind a synthetic character (id == conn) to satisfy the step-007
+        // "Local chat requires a selected character" check. Tests that need
+        // no-character behavior must skip this helper.
+        sessions.bind_character(c, /*char_id=*/c, /*location_id=*/0);
     }
 
     void deliver(game::net::ConnId c, const std::vector<uint8_t>& raw_say) {
