@@ -3,6 +3,7 @@
 #include "log/logger.h"
 
 #include <ixwebsocket/IXConnectionState.h>
+#include <ixwebsocket/IXNetSystem.h>
 #include <ixwebsocket/IXWebSocket.h>
 #include <ixwebsocket/IXWebSocketMessageType.h>
 #include <ixwebsocket/IXWebSocketServer.h>
@@ -23,6 +24,11 @@ void IxTransport::set_max_connections(size_t max) {
 }
 
 void IxTransport::start(uint16_t port) {
+    // On Windows, socket() requires WSAStartup to have run. libpq does this
+    // implicitly in the Postgres backend path, but the memory backend never
+    // loads libpq, so we must initialize Winsock explicitly here. Idempotent.
+    ix::initNetSystem();
+
     // backlog kept at ixwebsocket default; max-conn is enforced by us below
     // so we can send a polite close reason instead of dropping the TCP accept.
     server_ = std::make_unique<ix::WebSocketServer>(port);

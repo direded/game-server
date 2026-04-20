@@ -6,6 +6,7 @@ logs/
 
 # Ad-hoc acceptance/integration harness (not part of the repo)
 _accept/
+_smoke/
 
 # Vendored dependencies (fetched by scripts/setup.ps1)
 vendor/
