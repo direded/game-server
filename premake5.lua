@@ -28,12 +28,16 @@ local PG_ROOT = read_pg_root()
 local PG_INCLUDE = PG_ROOT .. "/include"
 local PG_LIB = PG_ROOT .. "/lib"
 
--- libsodium (Argon2id + randombytes). Official MSVC prebuilt ships static
--- libs under x64/<Config>/v143/static/. We link statically and define
--- SODIUM_STATIC so the headers don't export-mark the API.
+-- libsodium (Argon2id + randombytes). Official MSVC prebuilt ships three
+-- x64/<Config>/v143/ flavors:
+--   static/  — /MT, static lib (CRT mismatch with our /MD → LNK4098)
+--   dynamic/ — /MD, DLL (matches our CRT; must ship libsodium.dll)
+--   ltcg/    — /MT+LTCG, static lib (same CRT mismatch as static/)
+-- Only dynamic/ matches /MD, so we link against its import lib and
+-- copy libsodium.dll into the target dir via postbuildcommands.
 local SODIUM_INCLUDE = VENDOR .. "/libsodium/include"
-local SODIUM_LIB_DEBUG   = VENDOR .. "/libsodium/x64/Debug/v143/static"
-local SODIUM_LIB_RELEASE = VENDOR .. "/libsodium/x64/Release/v143/static"
+local SODIUM_LIB_DEBUG   = VENDOR .. "/libsodium/x64/Debug/v143/dynamic"
+local SODIUM_LIB_RELEASE = VENDOR .. "/libsodium/x64/Release/v143/dynamic"
 
 workspace "game-server"
     architecture "x64"
@@ -170,7 +174,7 @@ project "game-server"
 
     libdirs { PG_LIB }
 
-    defines { "YAML_CPP_STATIC_DEFINE", "SODIUM_STATIC" }
+    defines { "YAML_CPP_STATIC_DEFINE" }
 
     links {
         "yaml-cpp",
@@ -186,8 +190,14 @@ project "game-server"
         links { "ws2_32", "advapi32" }
     filter "configurations:Debug"
         libdirs { SODIUM_LIB_DEBUG }
+        postbuildcommands {
+            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_DEBUG .. '/libsodium.dll" "%{cfg.targetdir}/"'
+        }
     filter "configurations:Release"
         libdirs { SODIUM_LIB_RELEASE }
+        postbuildcommands {
+            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_RELEASE .. '/libsodium.dll" "%{cfg.targetdir}/"'
+        }
     filter {}
 
 -- ──────────────────────────────────────────────────────────
@@ -225,8 +235,6 @@ project "game-server-tests"
 
     libdirs { PG_LIB }
 
-    defines { "SODIUM_STATIC" }
-
     links {
         "googletest",
         "libpq",
@@ -240,6 +248,12 @@ project "game-server-tests"
         links { "ws2_32", "advapi32" }
     filter "configurations:Debug"
         libdirs { SODIUM_LIB_DEBUG }
+        postbuildcommands {
+            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_DEBUG .. '/libsodium.dll" "%{cfg.targetdir}/"'
+        }
     filter "configurations:Release"
         libdirs { SODIUM_LIB_RELEASE }
+        postbuildcommands {
+            '{COPYFILE} "%{wks.location}/../' .. SODIUM_LIB_RELEASE .. '/libsodium.dll" "%{cfg.targetdir}/"'
+        }
     filter {}
