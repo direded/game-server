@@ -100,15 +100,28 @@ if ($LASTEXITCODE -ne 0) {
 
 $rc = 1
 try {
-    # Wait for the server to accept connections (pg_isready inside the container).
-    $deadline = (Get-Date).AddSeconds(30)
+    # Wait for the server to accept *authenticated* connections. pg_isready
+    # alone is not enough — the postgres entrypoint runs initdb, starts
+    # postgres without auth to apply init scripts, then restarts with the
+    # configured password. pg_isready returns ready during the first phase,
+    # before POSTGRES_PASSWORD takes effect, so dbmate would race in and get
+    # EOF. We poll an actual SELECT with the real credentials instead.
+    $deadline = (Get-Date).AddSeconds(60)
+    $ready = $false
     while ((Get-Date) -lt $deadline) {
-        & docker exec $container pg_isready -U postgres 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) { break }
-        Start-Sleep -Milliseconds 250
+        # -h 127.0.0.1 forces TCP (the unix socket isn't there during initdb).
+        # We must keep going on connect failures, so run inside a try/catch and
+        # also redirect stderr — $ErrorActionPreference='Stop' would otherwise
+        # turn psql's diagnostic writes into terminating errors.
+        try {
+            & docker exec -e PGPASSWORD=$pgPass $container `
+                psql -h 127.0.0.1 -U postgres -d game_test -tAc "SELECT 1" *> $null
+        } catch { }
+        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+        Start-Sleep -Milliseconds 500
     }
-    if ($LASTEXITCODE -ne 0) {
-        throw "Postgres in container did not become ready within 30s"
+    if (-not $ready) {
+        throw "Postgres in container did not accept authenticated connections within 60s"
     }
 
     $url = "postgres://postgres:$pgPass@localhost:$DockerPort/game_test?sslmode=disable"
