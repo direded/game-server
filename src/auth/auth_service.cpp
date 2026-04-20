@@ -1,5 +1,6 @@
 #include "auth/auth_service.h"
 
+#include "auth/crypto.h"
 #include "log/logger.h"
 #include "net/framing.h"
 #include "protocol/generated/auth_generated.h"
@@ -7,7 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <random>
+#include <exception>
 #include <sstream>
 #include <iomanip>
 
@@ -15,7 +16,6 @@ namespace game::auth {
 
 namespace {
 
-constexpr size_t kTokenBytes = 32;
 constexpr size_t kMinUsername = 3;
 constexpr size_t kMaxUsername = 32;
 constexpr size_t kMinPassword = 8;
@@ -26,6 +26,21 @@ constexpr size_t kMaxPassword = 128;
 std::string token_fingerprint(std::string_view token) {
     if (token.size() <= 8) return std::string(token);
     return std::string(token.substr(0, 8)) + "...";
+}
+
+// Pre-computed Argon2id hash used to keep verify_password's runtime constant
+// on the unknown-username path. First call pays one hash (~10 ms); all
+// subsequent calls reuse the same string. Lazy so crypto::init() runs first.
+const std::string& dummy_password_hash() {
+    static const std::string h = crypto::hash_password("timing-defense-dummy");
+    return h;
+}
+
+bool is_unique_violation(const std::exception& e) {
+    std::string_view msg = e.what();
+    return msg.find("23505") != std::string_view::npos
+        || msg.find("duplicate key") != std::string_view::npos
+        || msg.find("unique constraint") != std::string_view::npos;
 }
 
 } // namespace
@@ -66,23 +81,9 @@ bool AuthService::is_valid_email(std::string_view s) {
 }
 
 std::string AuthService::generate_token() {
-    // TODO(step-005): replace with libsodium randombytes_buf for crypto-safe
-    // entropy. std::mt19937_64 + random_device is adequate as a placeholder
-    // but is NOT guaranteed to be cryptographically secure.
-    static thread_local std::mt19937_64 rng{std::random_device{}()};
-
-    std::array<uint8_t, kTokenBytes> bytes{};
-    for (size_t i = 0; i + 7 < bytes.size(); i += 8) {
-        uint64_t v = rng();
-        for (size_t j = 0; j < 8; ++j) {
-            bytes[i + j] = static_cast<uint8_t>((v >> (j * 8)) & 0xFFu);
-        }
-    }
-
-    std::ostringstream os;
-    os << std::hex << std::setfill('0');
-    for (uint8_t b : bytes) os << std::setw(2) << static_cast<int>(b);
-    return os.str();
+    // Crypto-grade entropy via libsodium (randombytes_buf) — CSPRNG seeded
+    // from the OS. Returns 32 random bytes hex-encoded (64 chars).
+    return crypto::generate_session_token();
 }
 
 std::string AuthService::remote_ip_of(net::ConnId conn) const {
@@ -150,14 +151,33 @@ void AuthService::handle_register(net::ConnId conn, const ::auth::Register& pkt)
         return;
     }
 
-    // TODO(step-005): replace with Argon2id via libsodium.
-    auto acct = store_.create_account(username, password, email);
+    AccountRecord acct;
+    try {
+        const std::string hashed = crypto::hash_password(password);
+        acct = store_.create_account(username, hashed, email);
+    } catch (const std::exception& e) {
+        if (is_unique_violation(e)) {
+            // Lost the race with a concurrent Register for the same username.
+            LOG_INF("auth: register race-lost username taken: {}", username);
+            send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_UsernameTaken));
+            return;
+        }
+        LOG_ERR("auth: register create_account failed for {}: {}", username, e.what());
+        send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_ServerError));
+        return;
+    }
     LOG_INF("auth: account created id={} username={}", acct.id, username);
 
     const std::string token = generate_token();
     const auto now_sys = Clock::now();
     const auto expires = now_sys + cfg_.session_ttl;
-    store_.create_session(acct.id, token, now_sys, expires);
+    try {
+        store_.create_session(acct.id, token, now_sys, expires);
+    } catch (const std::exception& e) {
+        LOG_ERR("auth: register create_session failed: {}", e.what());
+        send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_ServerError));
+        return;
+    }
 
     sessions_.mark_authenticated(conn, acct.id);
     LOG_INF("auth: register success conn={} account={} token={}",
@@ -186,17 +206,17 @@ void AuthService::handle_login(net::ConnId conn, const ::auth::Login& pkt) {
     }
 
     auto acct = store_.find_account_by_username(username);
-    if (!acct) {
-        rate_limiter_.record_failed_login(username, now_steady);
-        LOG_INF("auth: login unknown-user username={}", username);
-        send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_InvalidCredentials));
-        return;
-    }
 
-    // TODO(step-005): replace with Argon2id via libsodium.
-    if (acct->password_hash != password) {
+    // Always run verify_password — even on unknown username — to keep the
+    // runtime of this branch indistinguishable from a wrong-password hit.
+    // Otherwise an attacker can enumerate usernames by measuring latency.
+    const std::string& hash_to_check = acct ? acct->password_hash : dummy_password_hash();
+    const bool pw_ok = crypto::verify_password(password, hash_to_check);
+
+    if (!acct || !pw_ok) {
         rate_limiter_.record_failed_login(username, now_steady);
-        LOG_INF("auth: login wrong-password username={}", username);
+        LOG_INF("auth: login failed username={} reason={}",
+                username, acct ? "wrong-password" : "unknown-user");
         send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_InvalidCredentials));
         return;
     }
@@ -206,7 +226,13 @@ void AuthService::handle_login(net::ConnId conn, const ::auth::Login& pkt) {
     const std::string token = generate_token();
     const auto now_sys = Clock::now();
     const auto expires = now_sys + cfg_.session_ttl;
-    store_.create_session(acct->id, token, now_sys, expires);
+    try {
+        store_.create_session(acct->id, token, now_sys, expires);
+    } catch (const std::exception& e) {
+        LOG_ERR("auth: login create_session failed: {}", e.what());
+        send_auth_fail(conn, static_cast<uint8_t>(::auth::AuthFailReason_ServerError));
+        return;
+    }
 
     sessions_.mark_authenticated(conn, acct->id);
     LOG_INF("auth: login success conn={} account={} token={}",

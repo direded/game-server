@@ -23,7 +23,7 @@ $PREMAKE_VERSION = "5.0.0-beta5"
 $PREMAKE_EXE = Join-Path $PREMAKE_DIR "premake5.exe"
 
 if (-Not (Test-Path $PREMAKE_EXE)) {
-    Write-Host "`n[1/9] Downloading Premake5 v$PREMAKE_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[1/10] Downloading Premake5 v$PREMAKE_VERSION..." -ForegroundColor Yellow
     $premakeUrl = "https://github.com/premake/premake-core/releases/download/v$PREMAKE_VERSION/premake-$PREMAKE_VERSION-windows.zip"
     $premakeZip = Join-Path $PREMAKE_DIR "premake.zip"
 
@@ -33,7 +33,7 @@ if (-Not (Test-Path $PREMAKE_EXE)) {
 
     Write-Host "  Premake5 ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[1/9] Premake5 already present" -ForegroundColor Green
+    Write-Host "`n[1/10] Premake5 already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ $QUILL_VERSION = "11.1.0"
 $QUILL_DIR = Join-Path $VENDOR "quill"
 
 if (-Not (Test-Path (Join-Path $QUILL_DIR "include\quill\Backend.h"))) {
-    Write-Host "`n[2/9] Downloading Quill v$QUILL_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[2/10] Downloading Quill v$QUILL_VERSION..." -ForegroundColor Yellow
     $quillUrl = "https://github.com/odygrd/quill/archive/refs/tags/v$QUILL_VERSION.zip"
     $quillZip = Join-Path $VENDOR "quill.zip"
 
@@ -56,7 +56,7 @@ if (-Not (Test-Path (Join-Path $QUILL_DIR "include\quill\Backend.h"))) {
 
     Write-Host "  Quill ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[2/9] Quill already present" -ForegroundColor Green
+    Write-Host "`n[2/10] Quill already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ $YAMLCPP_VERSION = "0.8.0"
 $YAMLCPP_DIR = Join-Path $VENDOR "yaml-cpp"
 
 if (-Not (Test-Path (Join-Path $YAMLCPP_DIR "include\yaml-cpp\yaml.h"))) {
-    Write-Host "`n[3/9] Downloading yaml-cpp v$YAMLCPP_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[3/10] Downloading yaml-cpp v$YAMLCPP_VERSION..." -ForegroundColor Yellow
     $yamlUrl = "https://github.com/jbeder/yaml-cpp/archive/refs/tags/$YAMLCPP_VERSION.zip"
     $yamlZip = Join-Path $VENDOR "yaml-cpp.zip"
 
@@ -79,7 +79,7 @@ if (-Not (Test-Path (Join-Path $YAMLCPP_DIR "include\yaml-cpp\yaml.h"))) {
 
     Write-Host "  yaml-cpp ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[3/9] yaml-cpp already present" -ForegroundColor Green
+    Write-Host "`n[3/10] yaml-cpp already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ $GTEST_VERSION = "1.15.2"
 $GTEST_DIR = Join-Path $VENDOR "googletest"
 
 if (-Not (Test-Path (Join-Path $GTEST_DIR "googletest\include\gtest\gtest.h"))) {
-    Write-Host "`n[4/9] Downloading Google Test v$GTEST_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[4/10] Downloading Google Test v$GTEST_VERSION..." -ForegroundColor Yellow
     $gtestUrl = "https://github.com/google/googletest/archive/refs/tags/v$GTEST_VERSION.zip"
     $gtestZip = Join-Path $VENDOR "googletest.zip"
 
@@ -102,7 +102,7 @@ if (-Not (Test-Path (Join-Path $GTEST_DIR "googletest\include\gtest\gtest.h"))) 
 
     Write-Host "  Google Test ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[4/9] Google Test already present" -ForegroundColor Green
+    Write-Host "`n[4/10] Google Test already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -112,12 +112,12 @@ $DBMATE_VERSION = "2.22.0"
 $DBMATE_EXE = Join-Path $TOOLS_DIR "dbmate.exe"
 
 if (-Not (Test-Path $DBMATE_EXE)) {
-    Write-Host "`n[5/9] Downloading dbmate v$DBMATE_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[5/10] Downloading dbmate v$DBMATE_VERSION..." -ForegroundColor Yellow
     $dbmateUrl = "https://github.com/amacneil/dbmate/releases/download/v$DBMATE_VERSION/dbmate-windows-amd64.exe"
     Invoke-WebRequest -Uri $dbmateUrl -OutFile $DBMATE_EXE -UseBasicParsing
     Write-Host "  dbmate ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[5/9] dbmate already present" -ForegroundColor Green
+    Write-Host "`n[5/10] dbmate already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ $FLATBUFFERS_VERSION = "24.3.25"
 $FLATC_EXE = Join-Path $TOOLS_DIR "flatc.exe"
 
 if (-Not (Test-Path $FLATC_EXE)) {
-    Write-Host "`n[6/9] Downloading flatc v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[6/10] Downloading flatc v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
     $flatcUrl = "https://github.com/google/flatbuffers/releases/download/v$FLATBUFFERS_VERSION/Windows.flatc.binary.zip"
     $flatcZip = Join-Path $TOOLS_DIR "flatc.zip"
 
@@ -137,7 +137,7 @@ if (-Not (Test-Path $FLATC_EXE)) {
 
     Write-Host "  flatc ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[6/9] flatc already present" -ForegroundColor Green
+    Write-Host "`n[6/10] flatc already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ if (-Not (Test-Path $FLATC_EXE)) {
 $FLATBUFFERS_DIR = Join-Path $VENDOR "flatbuffers"
 
 if (-Not (Test-Path (Join-Path $FLATBUFFERS_DIR "include\flatbuffers\flatbuffers.h"))) {
-    Write-Host "`n[7/9] Downloading FlatBuffers sources v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[7/10] Downloading FlatBuffers sources v$FLATBUFFERS_VERSION..." -ForegroundColor Yellow
     $fbsUrl = "https://github.com/google/flatbuffers/archive/refs/tags/v$FLATBUFFERS_VERSION.zip"
     $fbsZip = Join-Path $VENDOR "flatbuffers.zip"
 
@@ -163,7 +163,7 @@ if (-Not (Test-Path (Join-Path $FLATBUFFERS_DIR "include\flatbuffers\flatbuffers
 
     Write-Host "  FlatBuffers headers ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[7/9] FlatBuffers headers already present" -ForegroundColor Green
+    Write-Host "`n[7/10] FlatBuffers headers already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
@@ -173,7 +173,7 @@ $IXWS_VERSION = "11.4.5"
 $IXWS_DIR = Join-Path $VENDOR "ixwebsocket"
 
 if (-Not (Test-Path (Join-Path $IXWS_DIR "ixwebsocket\IXWebSocket.h"))) {
-    Write-Host "`n[8/9] Downloading ixwebsocket v$IXWS_VERSION..." -ForegroundColor Yellow
+    Write-Host "`n[8/10] Downloading ixwebsocket v$IXWS_VERSION..." -ForegroundColor Yellow
     $ixwsUrl = "https://github.com/machinezone/IXWebSocket/archive/refs/tags/v$IXWS_VERSION.zip"
     $ixwsZip = Join-Path $VENDOR "ixwebsocket.zip"
 
@@ -194,13 +194,41 @@ if (-Not (Test-Path (Join-Path $IXWS_DIR "ixwebsocket\IXWebSocket.h"))) {
 
     Write-Host "  ixwebsocket ready" -ForegroundColor Green
 } else {
-    Write-Host "`n[8/9] ixwebsocket already present" -ForegroundColor Green
+    Write-Host "`n[8/10] ixwebsocket already present" -ForegroundColor Green
 }
 
 # ────────────────────────────────────────────────────────────
-# 9. PostgreSQL install detection (for libpq headers + import lib)
+# 9. libsodium (Argon2id + randombytes). Official MSVC prebuilts — static
+# libs + headers, no runtime DLL required when SODIUM_STATIC is defined.
 # ────────────────────────────────────────────────────────────
-Write-Host "`n[9/9] Detecting local PostgreSQL install..." -ForegroundColor Yellow
+$LIBSODIUM_VERSION = "1.0.20-stable"
+$LIBSODIUM_DIR = Join-Path $VENDOR "libsodium"
+
+if (-Not (Test-Path (Join-Path $LIBSODIUM_DIR "include\sodium.h"))) {
+    Write-Host "`n[9/10] Downloading libsodium v$LIBSODIUM_VERSION (msvc prebuilt)..." -ForegroundColor Yellow
+    $sodiumUrl = "https://download.libsodium.org/libsodium/releases/libsodium-$LIBSODIUM_VERSION-msvc.zip"
+    $sodiumZip = Join-Path $VENDOR "libsodium.zip"
+
+    Invoke-WebRequest -Uri $sodiumUrl -OutFile $sodiumZip -UseBasicParsing
+    # The archive's top-level dir is "libsodium" — if a stale copy exists,
+    # remove it first so Expand-Archive doesn't merge.
+    if (Test-Path $LIBSODIUM_DIR) { Remove-Item -Recurse -Force $LIBSODIUM_DIR }
+    Expand-Archive -Path $sodiumZip -DestinationPath $VENDOR -Force
+    Remove-Item $sodiumZip
+
+    if (-Not (Test-Path (Join-Path $LIBSODIUM_DIR "include\sodium.h"))) {
+        Write-Host "  libsodium archive layout unexpected — sodium.h not found." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  libsodium ready" -ForegroundColor Green
+} else {
+    Write-Host "`n[9/10] libsodium already present" -ForegroundColor Green
+}
+
+# ────────────────────────────────────────────────────────────
+# 10. PostgreSQL install detection (for libpq headers + import lib)
+# ────────────────────────────────────────────────────────────
+Write-Host "`n[10/10] Detecting local PostgreSQL install..." -ForegroundColor Yellow
 $PG_ROOT = $env:PGROOT
 if (-Not $PG_ROOT) {
     $candidates = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue |

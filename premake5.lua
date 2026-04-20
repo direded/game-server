@@ -28,6 +28,13 @@ local PG_ROOT = read_pg_root()
 local PG_INCLUDE = PG_ROOT .. "/include"
 local PG_LIB = PG_ROOT .. "/lib"
 
+-- libsodium (Argon2id + randombytes). Official MSVC prebuilt ships static
+-- libs under x64/<Config>/v143/static/. We link statically and define
+-- SODIUM_STATIC so the headers don't export-mark the API.
+local SODIUM_INCLUDE = VENDOR .. "/libsodium/include"
+local SODIUM_LIB_DEBUG   = VENDOR .. "/libsodium/x64/Debug/v143/static"
+local SODIUM_LIB_RELEASE = VENDOR .. "/libsodium/x64/Release/v143/static"
+
 workspace "game-server"
     architecture "x64"
     configurations { "Debug", "Release" }
@@ -157,24 +164,30 @@ project "game-server"
         VENDOR .. "/yaml-cpp/include",
         VENDOR .. "/flatbuffers/include",
         VENDOR .. "/ixwebsocket",
+        SODIUM_INCLUDE,
         PG_INCLUDE
     }
 
     libdirs { PG_LIB }
 
-    defines { "YAML_CPP_STATIC_DEFINE" }
+    defines { "YAML_CPP_STATIC_DEFINE", "SODIUM_STATIC" }
 
     links {
         "yaml-cpp",
         "ixwebsocket",
-        "libpq"
+        "libpq",
+        "libsodium"
     }
 
     prebuildcommands { FLATC_PREBUILD }
 
     filter "system:windows"
         systemversion "latest"
-        links { "ws2_32" }
+        links { "ws2_32", "advapi32" }
+    filter "configurations:Debug"
+        libdirs { SODIUM_LIB_DEBUG }
+    filter "configurations:Release"
+        libdirs { SODIUM_LIB_RELEASE }
     filter {}
 
 -- ──────────────────────────────────────────────────────────
@@ -195,6 +208,8 @@ project "game-server-tests"
         "src/session/**.cpp",
         "src/auth/**.h",
         "src/auth/**.cpp",
+        "src/db/**.h",
+        "src/db/**.cpp",
         "src/protocol/generated/**.h",
         "tests/**.cpp"
     }
@@ -203,15 +218,28 @@ project "game-server-tests"
         "src",
         VENDOR .. "/quill/include",
         VENDOR .. "/flatbuffers/include",
-        VENDOR .. "/googletest/googletest/include"
+        VENDOR .. "/googletest/googletest/include",
+        SODIUM_INCLUDE,
+        PG_INCLUDE
     }
 
+    libdirs { PG_LIB }
+
+    defines { "SODIUM_STATIC" }
+
     links {
-        "googletest"
+        "googletest",
+        "libpq",
+        "libsodium"
     }
 
     prebuildcommands { FLATC_PREBUILD }
 
     filter "system:windows"
         systemversion "latest"
+        links { "ws2_32", "advapi32" }
+    filter "configurations:Debug"
+        libdirs { SODIUM_LIB_DEBUG }
+    filter "configurations:Release"
+        libdirs { SODIUM_LIB_RELEASE }
     filter {}

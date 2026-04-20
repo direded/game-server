@@ -20,9 +20,23 @@ struct AuthRateLimitConfig {
     size_t per_account_hourly_fails = 20;
 };
 
+struct TokenCacheConfig {
+    uint32_t ttl_sec = 600;  // how long a cache entry stays fresh
+};
+
 struct AuthConfig {
+    // "postgres" (default) or "memory". memory retained for local dev /
+    // CI without Postgres — step-004 in-memory store behind the same
+    // IAuthStore interface.
+    std::string backend = "postgres";
     uint32_t session_ttl_days = 30;
     uint32_t handshake_timeout_sec = 10;
+    // How often (seconds) the background thread scans `sessions` for rows
+    // whose expires_at has passed and deletes them.
+    uint32_t sweeper_interval_sec = 600;
+    // Minimum gap between store writes for the same token's touch_session.
+    uint32_t session_touch_interval_sec = 300;
+    TokenCacheConfig token_cache;
     AuthRateLimitConfig rate_limit;
 };
 
@@ -64,8 +78,15 @@ struct Config {
         }
 
         if (auto auth = root["auth"]; auth && auth.IsMap()) {
+            if (auth["backend"]) cfg.auth.backend = auth["backend"].as<std::string>(cfg.auth.backend);
             if (auth["session_ttl_days"]) cfg.auth.session_ttl_days = auth["session_ttl_days"].as<uint32_t>(cfg.auth.session_ttl_days);
             if (auth["handshake_timeout_sec"]) cfg.auth.handshake_timeout_sec = auth["handshake_timeout_sec"].as<uint32_t>(cfg.auth.handshake_timeout_sec);
+            if (auth["sweeper_interval_sec"]) cfg.auth.sweeper_interval_sec = auth["sweeper_interval_sec"].as<uint32_t>(cfg.auth.sweeper_interval_sec);
+            if (auth["session_touch_interval_sec"]) cfg.auth.session_touch_interval_sec = auth["session_touch_interval_sec"].as<uint32_t>(cfg.auth.session_touch_interval_sec);
+
+            if (auto tc = auth["token_cache"]; tc && tc.IsMap()) {
+                if (tc["ttl_sec"]) cfg.auth.token_cache.ttl_sec = tc["ttl_sec"].as<uint32_t>(cfg.auth.token_cache.ttl_sec);
+            }
 
             if (auto rl = auth["rate_limit"]; rl && rl.IsMap()) {
                 if (rl["ip_bucket_cap"]) cfg.auth.rate_limit.ip_bucket_cap = rl["ip_bucket_cap"].as<size_t>(cfg.auth.rate_limit.ip_bucket_cap);

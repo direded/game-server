@@ -16,9 +16,14 @@ network:
   max_connections: 10000         # soft cap; connections beyond this are closed with 1013
 
 auth:
-  session_ttl_days: 30           # token lifetime (sliding — extended on every authenticated packet)
-  handshake_timeout_sec: 10      # disconnect unauthenticated clients idle this long
+  backend: "postgres"             # "postgres" (default) or "memory" (dev / no-DB testing)
+  session_ttl_days: 30            # token lifetime (sliding — extended on every authenticated packet)
+  handshake_timeout_sec: 10       # disconnect unauthenticated clients idle this long
+  sweeper_interval_sec: 600       # how often the background thread prunes expired sessions
+  session_touch_interval_sec: 300 # minimum gap between DB writes for the same token's last_seen_at
+  token_cache:
+    ttl_sec: 600                  # how long a session entry stays cached before refetching from the store
   rate_limit:
-    ip_bucket_cap: 10            # token bucket for Register+Login per IP (Resume is exempt)
-    ip_bucket_refill_sec: 6      # 1 token per N seconds
-    per_account_hourly_fails: 20 # per-username login-fail threshold → 1h lockout
+    ip_bucket_cap: 10             # token bucket for Register+Login per IP (Resume is exempt)
+    ip_bucket_refill_sec: 6       # 1 token per N seconds
+    per_account_hourly_fails: 20  # per-username login-fail threshold → 1h lockout
