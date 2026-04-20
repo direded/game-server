@@ -150,7 +150,7 @@ int main(int argc, char* argv[]) {
         flatbuffers::FlatBufferBuilder builder;
         auto encoded = ping::CreatePing(builder, /*nonce=*/42u);
         builder.Finish(encoded);
-        const auto* decoded = ping::GetPing(builder.GetBufferPointer());
+        const auto* decoded = flatbuffers::GetRoot<ping::Ping>(builder.GetBufferPointer());
         LOG_INF("Ping roundtrip OK (nonce={}, size={} bytes)", decoded->nonce(), builder.GetSize());
     }
 

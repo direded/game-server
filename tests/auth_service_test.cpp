@@ -44,21 +44,21 @@ protected:
         auto off = ::auth::CreateRegister(fbb, fbb.CreateString(u),
                                           fbb.CreateString(p), fbb.CreateString(e));
         fbb.Finish(off);
-        service_.handle_register(c, *::auth::GetRegister(fbb.GetBufferPointer()));
+        service_.handle_register(c, *flatbuffers::GetRoot<::auth::Register>(fbb.GetBufferPointer()));
     }
 
     void do_login(ConnId c, const std::string& u, const std::string& p) {
         flatbuffers::FlatBufferBuilder fbb;
         auto off = ::auth::CreateLogin(fbb, fbb.CreateString(u), fbb.CreateString(p));
         fbb.Finish(off);
-        service_.handle_login(c, *::auth::GetLogin(fbb.GetBufferPointer()));
+        service_.handle_login(c, *flatbuffers::GetRoot<::auth::Login>(fbb.GetBufferPointer()));
     }
 
     void do_resume(ConnId c, const std::string& token) {
         flatbuffers::FlatBufferBuilder fbb;
         auto off = ::auth::CreateResume(fbb, fbb.CreateString(token));
         fbb.Finish(off);
-        service_.handle_resume(c, *::auth::GetResume(fbb.GetBufferPointer()));
+        service_.handle_resume(c, *flatbuffers::GetRoot<::auth::Resume>(fbb.GetBufferPointer()));
     }
 
     // Returns the packet_id of the most recent captured frame (assumes ≥1).
@@ -72,7 +72,7 @@ protected:
     std::string last_auth_ok_token() const {
         const auto& last = captured_.back().bytes;
         auto f = game::net::decode(last.data(), last.size());
-        const auto* ok = ::auth::GetAuthOk(f->payload);
+        const auto* ok = flatbuffers::GetRoot<::auth::AuthOk>(f->payload);
         return ok->token()->str();
     }
 
@@ -80,7 +80,7 @@ protected:
     ::auth::AuthFailReason last_auth_fail_reason() const {
         const auto& last = captured_.back().bytes;
         auto f = game::net::decode(last.data(), last.size());
-        const auto* fail = ::auth::GetAuthFail(f->payload);
+        const auto* fail = flatbuffers::GetRoot<::auth::AuthFail>(f->payload);
         return fail->reason();
     }
 
