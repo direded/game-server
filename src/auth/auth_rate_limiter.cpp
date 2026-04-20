@@ -55,12 +55,16 @@ void AuthRateLimiter::record_failed_login(std::string_view username, Clock::time
     std::lock_guard<std::mutex> lg(mu_);
     auto& f = account_fails_[key];
 
-    if (f.locked_until > now) {
-        // Already locked — don't extend the lockout by piling on fails.
+    // Once a lockout has been applied for this account, only a successful
+    // login (→ clear_failed_logins) re-arms the counter. Any fails that arrive
+    // during the lockout window OR after it ends are silently discarded.
+    // This is the attacker-resistance property: without it, an attacker can
+    // keep pile-failing a known user to chain back-to-back 1h lockouts.
+    if (f.locked_until != Clock::time_point{}) {
         return;
     }
 
-    // Outside the rolling window → reset.
+    // First fail ever, or the rolling window rolled → start a fresh window.
     if (f.count == 0 || (now - f.window_start) > cfg_.per_account_window) {
         f.count = 1;
         f.window_start = now;
